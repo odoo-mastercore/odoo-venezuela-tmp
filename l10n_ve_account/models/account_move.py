@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-###############################################################################
+################################################################################
 # Author: SINAPSYS GLOBAL SA || MASTERCORE SAS
 # Copyleft: 2020-Present.
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl.html).
@@ -7,8 +7,11 @@
 #
 ###############################################################################
 from odoo import api, fields, models, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, UserError
+import logging
 import re
+from datetime import datetime
+_logger = logging.getLogger(__name__)
 
 
 class AccountMove(models.Model):
@@ -21,14 +24,17 @@ class AccountMove(models.Model):
     )
 
     def _post(self, soft=True):
-        posted_moves = super()._post(soft=soft)
-        for rec in posted_moves:
-            # Se valida que no exista fecha de factura y se la asignamos
-            # Con esto prevenimos que al validar facturas desde tome una fecha
-            # Que no corresponda con el correlativo de la factura
-            if rec.state == 'posted' and not rec.l10n_ve_invoice_date:
+        res = super()._post(soft=soft)
+        for rec in self:
+            if rec.state == 'posted':
                 rec.l10n_ve_invoice_date = fields.Datetime.now()
-        return posted_moves
+            # if rec.invoice_line_ids:
+            #     for line in rec.invoice_line_ids:
+            #         if not line.tax_ids:
+            #             raise ValidationError(
+            #                 _("El producto %s no tiene impuestos asignados.") % line.product_id.display_name
+            #             )
+        return res
 
     def _get_l10n_ve_invoice_date(self, split=False):
         date, time = False, False
@@ -49,98 +55,44 @@ class AccountMove(models.Model):
         """
         if 'skip_check_price' in self._context:
             return True
-        for line in self.invoice_line_ids.filtered(lambda x: x.product_id and x.display_type == 'product'):
-            if line.price_unit <= 0 and\
-                self.move_type in ['out_invoice'] and not\
-                re.search(FORBIDDEN_PATTER, line.product_id.name or '', re.IGNORECASE):
+        for move in self:
+            for line in move.invoice_line_ids.filtered(lambda x: x.product_id and x.display_type == 'product'):
+                if line.price_unit <= 0 and\
+                    move.move_type in ['out_invoice'] and not\
+                    re.search(FORBIDDEN_PATTER, line.product_id.name or '', re.IGNORECASE):
+                    raise ValidationError(
+                        _("No se permiten precios cero o negativos en las líneas de factura. Línea con producto: %s")
+                        % line.product_id.display_name
+                    )
+            
+    
+    @api.onchange('ref','partner_id')
+    def _onchange_ref(self):
+        if self.move_type == 'in_invoice' and self.partner_id and self.ref:
+            domain = [
+                ('move_type', '=', 'in_invoice'),
+                ('ref', '=', self.ref),
+                ('partner_id', '=', self.partner_id.id),
+                ('state', '=', 'posted')
+            ]
+            if self.state != 'draft':
+                domain.append(('id','!=',self.id))
+            move_exist = self.env['account.move'].search(domain)
+            if move_exist:
                 raise ValidationError(
-                    _("No se permiten precios cero o negativos en las líneas de factura. Línea con producto: %s")
-                    % line.product_id.display_name
+                    _("Ya existe una nota de crédito con el mismo número: %s")
+                    % move_exist.ref
                 )
 
-    @api.constrains('ref', 'partner_id', 'move_type')
-    def _check_unique_supplier_ref_by_partner(self):
-        for move in self:
-            if move.move_type != 'in_invoice' or not move.partner_id or not move.ref:
-                continue
 
-            duplicated_move = self.search([
-                ('id', '!=', move.id),
-                ('move_type', '=', 'in_invoice'),
-                ('partner_id', '=', move.partner_id.id),
-                ('ref', '=', move.ref),
-            ], limit=1)
-            if duplicated_move:
-                raise ValidationError(_(
-                    "La referencia '%(ref)s' ya existe para el proveedor %(partner)s."
-                ) % {
-                    'ref': move.ref,
-                    'partner': move.partner_id.display_name,
-                })
-
-    @api.model_create_multi
-    def create(self, vals_list):
-        records = super(AccountMove, self).create(vals_list)
-        for rec in records:
-            rec._check_lines_price()
-        return records
+    @api.model
+    def create(self, vals):
+        move = super(AccountMove, self).create(vals)
+        move._check_lines_price()
+        return move
 
     def write(self, vals):
-        rec = super(AccountMove, self).write(vals)
+        res = super(AccountMove, self).write(vals)
         if any(field in vals for field in ('line_ids', 'invoice_line_ids')):
             self._check_lines_price()
-        return rec
-
-    def _compute_tax_totals(self):
-        """
-        Hereda y ajusta la estructura de tax_totals:
-        - Solo items con impuestos > 0 en base imponible normal.
-        - Agrega sección 'Exento' para base imponible de impuestos con monto 0.
-        """
-        for move in self:
-            if move.is_invoice(include_receipts=True):
-                base_lines, _tax_lines = move._get_rounded_base_and_tax_lines()
-                base_lines_impuesto = []
-                base_lines_exento = []
-                for bl in base_lines:
-                    tiene_impuesto = any(td['tax'].amount > 0 for td in bl.get('tax_details', {}).get('taxes_data', []))
-                    tiene_exento = any(td['tax'].amount == 0 for td in bl.get('tax_details', {}).get('taxes_data', []))
-                    if tiene_impuesto:
-                        base_lines_impuesto.append(bl)
-                    elif tiene_exento or not bl.get('tax_details', {}).get('taxes_data', []):
-                        base_lines_exento.append(bl)
-                tax_totals = self.env['account.tax']._get_tax_totals_summary(
-                    base_lines=base_lines_impuesto,
-                    currency=move.currency_id,
-                    company=move.company_id,
-                    cash_rounding=move.invoice_cash_rounding_id,
-                )
-                if base_lines_exento:
-                    exento_totals = self.env['account.tax']._get_tax_totals_summary(
-                        base_lines=base_lines_exento,
-                        currency=move.currency_id,
-                        company=move.company_id,
-                        cash_rounding=None,
-                    )
-                    exento_subtotal = {
-                        'name': _('Exento'),
-                        'base_amount_currency': exento_totals['base_amount_currency'],
-                        'base_amount': exento_totals['base_amount'],
-                        'tax_amount_currency': 0.0,
-                        'tax_amount': 0.0,
-                        'tax_groups': [],
-                    }
-                    tax_totals['base_amount_currency'] += exento_totals['base_amount_currency']
-                    tax_totals['base_amount'] += exento_totals['base_amount']
-                    tax_totals['total_amount_currency'] += exento_totals['base_amount_currency']
-                    tax_totals['total_amount'] += exento_totals['base_amount']
-                    tax_totals['subtotals'] = [exento_subtotal] + tax_totals['subtotals']
-                tax_totals['display_in_company_currency'] = (
-                    move.company_id.display_invoice_tax_company_currency
-                    and move.company_currency_id != move.currency_id
-                    and tax_totals['has_tax_groups']
-                    and move.is_sale_document(include_receipts=True)
-                )
-                move.tax_totals = tax_totals
-            else:
-                move.tax_totals = None
+        return res

@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
 ###############################################################################
 # Author: SINAPSYS GLOBAL SA || MASTERCORE SAS
-# Copyleft: 2025-Present.
+# Copyleft: 2020-Present.
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl.html).
 #
 #
 ###############################################################################
-from odoo import models, fields
 
+from odoo import models, fields
 
 #Reference to
 #www.tipsparaempresas.com/tipos-de-contribuyentes-de-impuestos-al-seniat/
 class L10nVeResponsibilityType(models.Model):
+
     _name = 'l10n_ve.responsibility.type'
     _description = 'SENIAT Responsibility Type'
     _order = 'sequence'
