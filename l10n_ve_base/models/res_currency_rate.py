@@ -1,15 +1,21 @@
 ###############################################################################
 # Author: SINAPSYS GLOBAL SA || MASTERCORE SAS
-# Copyleft: 2025-Present.
+# Copyleft: 2020-Present.
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl.html).
 #
 #
 ###############################################################################
-from odoo import fields, models, _
+
+
+from odoo import api, fields, models
+from odoo.tools import float_compare
 from odoo.exceptions import UserError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
-class ResCurrencyRate(models.Model):
+class resCurrencyRate(models.Model):
     _inherit = 'res.currency.rate'
 
     rate = fields.Float(
@@ -17,8 +23,7 @@ class ResCurrencyRate(models.Model):
         default=1,
         help="The rate of the currency to the currency of rate 1")
 
-
-class ResCurrency(models.Model):
+class resCurrency(models.Model):
     _inherit = 'res.currency'
 
     rate = fields.Float(
@@ -29,9 +34,9 @@ class ResCurrency(models.Model):
 
     def action_get_currency_rate(self):
         currency_id = self.id
-        company = self.env['res.company'].search([
-            ('country_id', '=', self.env.ref('base.ve').id)
-        ],limit=1)
+        company = self.env['res.company'].search(
+            [('country_id', '=', self.env.ref('base.ve').id)],
+            limit=1)
         if not company:
             raise UserError(_(
                 'No company found using Venezuela localization'))

@@ -11,21 +11,16 @@
     'description': "",
     'author': "SINAPSYS GLOBAL SA || MASTERCORE SAS",
     'website': "http://sinapsys.global",
-    'version': '0.1',
+    'version': '16.0.1.0.3',
     'category': 'Localization',
-    'countries': ['ve'],
     'license': 'AGPL-3',
     'depends': [
         'base',
         'contacts',
+        'sale',
         'l10n_ve_base'
     ],
     'data': [
         'views/account_move.xml'
-    ],
-    'assets': {
-        'web.assets_backend': [
-            'l10n_ve_account/static/src/xml/res_config_edition.xml'
-        ]
-    }
+    ]
 }

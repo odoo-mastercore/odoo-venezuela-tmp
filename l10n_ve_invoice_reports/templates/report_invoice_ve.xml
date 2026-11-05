@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+<!-- TODO realizar compatibilidad en multilocalizaciones -->
+  <template id="report_invoice_ve" inherit_id="account.report_invoice_document">
+    <xpath expr="//t[@t-set='address']" position="replace">
+      <xpath expr="//div[@id='informations']" position="replace">
+        <t t-if="o.company_id.country_id.code == 'VE'">
+
+          <div id="informations">
+            <div t-if="o.l10n_ve_document_number">
+              <strong>Nro: <span t-field="o.l10n_ve_document_number"/></strong>
+            </div>
+            <br/>
+            Sr(s): <span t-field="o.partner_id.name"/><br/>
+            Domicilio:
+            <span t-field="o.partner_id.street"/>,
+            <span t-field="o.partner_id.city"/>,
+            <span t-field="o.partner_id.zip"/>,
+            <span t-field="o.partner_id.state_id.name"/><br/>
+            RIF: <span t-field="o.partner_id.l10n_latam_identification_type_id.l10n_ve_code"/>-<span t-field="o.partner_id.vat"/><br/>
+            <!-- compatibility with other module -->
+            <t t-set="address">
+              <address invisible="1"/>
+            </t>
+          </div>
+          <br/><br/>
+          <div name="reference">
+          </div>
+        </t>
+      </xpath>
+    </xpath>
+    <xpath expr="//div[@id='total']" position="replace">
+      <t t-if="o.currency_id != o.company_id.currency_id">
+        <div id="total" class="row">
+          <div t-attf-class="#{'col-6' if report_type != 'html' else 'col-sm-7 col-md-6'} ml-auto">
+              <table class="table table-sm" style="page-break-inside: avoid;">
+                  <tr class="border-black o_subtotal" style="">
+                      <td><strong>Subtotal</strong></td>
+                      <td class="text-right">
+                          <t t-set="amount_untaxed_unsigned" t-value="'{0:,.2f}'.format(round(abs(o.amount_untaxed_signed),2)).replace(',', ' ').replace('.', ',').replace(' ', '.')"/>
+                          <span t-esc="amount_untaxed_unsigned" /> <span t-esc="o.company_id.currency_id.symbol" />
+                      </td>
+                      <td class="text-right">
+                          <span t-field="o.amount_untaxed"/>
+                      </td>
+                  </tr>
+                  
+                  <t t-set="tax_totals" t-value="json.loads(o.tax_totals_json)"/>
+                  <t t-foreach="tax_totals['subtotals']" t-as="subtotal">
+                      <t t-set="subtotal_to_show" t-value="subtotal['name']"/>
+                      <t t-foreach="tax_totals['groups_by_subtotal'][subtotal_to_show]" t-as="amount_by_group">
+                          <tr style="">  
+                              <t t-if="len(tax_totals['groups_by_subtotal'][subtotal_to_show]) > 1">
+                                  <td><span class="text-nowrap" t-esc="amount_by_group['tax_group_name']"/></td>
+                                  <td class="text-right o_price_total">
+                                      <span class="text-nowrap" t-esc="round(o.amount_str_in_company_currency(amount_by_group['formatted_tax_group_amount'], o.currency_id.id, o.invoice_date), 2)" t-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: o.company_id.currency_id}"/>
+                                  </td>
+                                  <td class="text-right o_price_total">
+                                      <span class="text-nowrap" t-esc="amount_by_group['formatted_tax_group_amount']"/>
+                                  </td>
+                              </t>
+                              <t t-else="">
+                                  <td>
+                                      <span t-esc="amount_by_group['tax_group_name']"/>
+                                  </td>
+                                  <td class="text-right o_price_total">
+                                      <span class="text-nowrap" t-esc="round(o.amount_str_in_company_currency(amount_by_group['formatted_tax_group_amount'], o.currency_id.id, o.invoice_date), 2)" t-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: o.company_id.currency_id}"/>
+                                  </td>
+                                  <td class="text-right o_price_total">
+                                      <span class="text-nowrap" t-esc="amount_by_group['formatted_tax_group_amount']"/>
+                                  </td>
+                              </t>
+                          </tr>   
+                      </t>
+                  </t>
+
+                  <tr class="border-black o_total">
+                      <td><strong>Total</strong></td>
+                      <td class="text-right">
+                          <t t-set="amount_total_unsigned" t-value="'{0:,.2f}'.format(round(abs(o.amount_total_signed),2)).replace(',', ' ').replace('.', ',').replace(' ', '.')"/>
+                          <span t-esc="amount_total_unsigned" /> <span t-esc="o.company_id.currency_id.symbol" />
+                      </td>
+                      <td class="text-right">
+                          <span class="text-nowrap" t-field="o.amount_total"/>
+                      </td>
+                  </tr>
+              </table>
+          </div>
+        </div>
+      </t>
+    </xpath>
+    <div class="clearfix" position="after">
+        <t t-if="o.currency_id != o.company_id.currency_id">
+            <br/> <p>
+            Se Aplicó la Tasa de Cambio Oficial del Banco Central de Venezuela (BCV) de  
+            <t t-set="rate_amount" t-value="1 / o.invoice_rate(o.currency_id.id, o.invoice_date)" />
+            <span>Bs <span t-esc="rate_amount" t-options='{"widget": "float", "precision": 2}'/></span>
+            por cada USD$, 
+            de Conformidad con la Providencia del SENIAT SNAT/2011/00071 Artículo 13 numeral 14.
+            </p>
+            <p><b>PARA EFECTOS DEL PAGO DEBE UTILIZARSE LA TASA VIGENTE AL DIA DE PAGO</b></p>
+        </t>
+    </div>
+  </template>
+</odoo>

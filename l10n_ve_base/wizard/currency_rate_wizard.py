@@ -1,12 +1,17 @@
 ###############################################################################
 # Author: SINAPSYS GLOBAL SA || MASTERCORE SAS
-# Copyleft: 2025-Present.
+# Copyleft: 2020-Present.
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl.html).
 #
 #
 ###############################################################################
-from odoo import models, fields, _
+
+from odoo import models, fields, api, _
+from odoo.exceptions import UserError
 import datetime
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class CurrencyRateWizard(models.TransientModel):
@@ -41,10 +46,11 @@ class CurrencyRateWizard(models.TransientModel):
             ('currency_id', '=', self.currency_id.id),
             ('name', '=', datetime.date.today())
         ])
+
         if rec:
             rec.write(values)
         else:
-            self.env['res.currency.rate'].create(values)
+            record = self.env['res.currency.rate'].create(values)
 
         return {
             'type': 'ir.actions.act_window',
