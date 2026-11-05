@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <template id="report_payment_group_document" inherit_id="account_payment_group.report_payment_group_document">
+    <template id="report_payment_group_document" inherit_id="l10n_ve_account_payment_group.report_payment_group_document">
         <t t-set="o" position="after">
             <t t-set="report_date" t-value="o.payment_date"/>
             <t t-set="report_number" t-value="o.document_number"/>
@@ -75,7 +75,7 @@
                         <tr>
                             <td><span t-raw='"%s - %s" % (line.tax_withholding_id.name, line.withholding_number or line.name)'/></td>
                             <td class="text-right o_price_total">
-                                <span class="text-nowrap" t-field="line.amount_company_currency"/>
+                                <span class="text-nowrap" t-field="line.signed_amount_company_currency"/>
                             </td>
                         </tr>
                     </t>
@@ -86,12 +86,12 @@
                               <span t-field="line.journal_id.name"/>
                                <t t-if="line.other_currency">
                                 <span> (</span>
-                                <span  t-field="line.amount_signed" t-field-options='{"widget": "monetary",  "display_currency": "line.currency_id"}'/>
+                                <span  t-field="line.signed_amount" t-field-options='{"widget": "monetary",  "display_currency": "line.currency_id"}'/>
                                 <span>)</span>
                               </t>
                             </td>
                             <td class="text-right o_price_total">
-                                <span class="text-nowrap" t-field="line.amount_company_currency"/>
+                                <span class="text-nowrap" t-field="line.signed_amount_company_currency"/>
                             </td>
                         </tr>
                     </t>
@@ -149,7 +149,7 @@
                 </tfoot>
             </table>
             <br/>
-            <table class="table table-sm o_main_table" name="open_table" t-if="o.partner_type=='supplier'">
+            <table class="table table-sm o_main_table" name="open_table" t-if="o.partner_type=='customer'">
                 <thead>
                     <tr>
                         <th><span>Comprobantes Pendientes al</span><span t-raw="datetime.datetime.today()" t-options='{"widget": "date"}'/></th>
@@ -159,7 +159,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <t t-foreach="o.env['account.move.line'].search([('partner_id', '=', o.partner_id.commercial_partner_id.id), ('account_id.account_type', '=', o.partner_type=='customer' and 'asset_receivable' or 'liability_payable'), ('reconciled', '=', False), ('account_id.deprecated', '=', False), ('move_id.state', '=', 'posted'), ('company_id', '=', o.company_id.id)])" t-as="line">
+                    <t t-foreach="o.env['account.move.line'].search([('partner_id', '=', o.partner_id.commercial_partner_id.id), ('account_id.internal_type', '=', o.partner_type=='customer' and 'receivable' or 'payable'), ('reconciled', '=', False), ('account_id.deprecated', '=', False), ('move_id.state', '=', 'posted'), ('company_id', '=', o.company_id.id)])" t-as="line">
                         <tr>
                             <td><span t-field='line.move_id.display_name'/></td>
                             <td class="text-center">
@@ -178,7 +178,7 @@
                     <tr>
                         <td colspan="3"><strong><span>Total Pendiente</span></strong></td>
                         <td class="text-right">
-                            <strong><span class="text-nowrap" t-out="sum(o.env['account.move.line'].search([('partner_id', '=', o.partner_id.commercial_partner_id.id), ('account_id.account_type', '=', o.partner_type=='customer' and 'asset_receivable' or 'liability_payable'), ('reconciled', '=', False), ('account_id.deprecated', '=', False), ('move_id.state', '=', 'posted'), ('company_id', '=', o.company_id.id)]).mapped('amount_residual'))" t-options='{"widget": "monetary", "display_currency": o.currency_id}'/></strong>
+                            <strong><span class="text-nowrap" t-raw="sum(o.env['account.move.line'].search([('partner_id', '=', o.partner_id.commercial_partner_id.id), ('account_id.internal_type', '=', o.partner_type=='customer' and 'receivable' or 'payable'), ('reconciled', '=', False), ('account_id.deprecated', '=', False), ('move_id.state', '=', 'posted'), ('company_id', '=', o.company_id.id)]).mapped('amount_residual'))" t-options='{"widget": "monetary", "display_currency": o.currency_id}'/></strong>
                         </td>
                     </tr>
                 </tfoot>
