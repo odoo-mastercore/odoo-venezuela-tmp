@@ -1,23 +1,22 @@
 # -*- coding: utf-8 -*-
 ################################################################################
 # Author: SINAPSYS GLOBAL SA || MASTERCORE SAS
-# Copyleft: 2025-Present.
+# Copyleft: 2020-Present.
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl.html).
 #
 #
 ################################################################################
 from odoo import models, fields, api, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError
 
 
 class ResPartner(models.Model):
     _inherit = 'res.partner'
-
     country_id = fields.Many2one(
         'res.country',
-        string='País',
+        string=u'País',
         ondelete='restrict',
-        help="País",
+        help=u"País",
         default=lambda self: self.env['res.country'].search(
             [('name', '=', 'Venezuela')]
         )[0].id
@@ -26,67 +25,59 @@ class ResPartner(models.Model):
         "res.country.state",
         string='Estado',
         ondelete='restrict',
-        help="Estado"
+        help=u"Estado"
     )
     municipality_id = fields.Many2one(
         "res.country.state.municipality",
         string="Municipio",
         domain="[('state_id', '=', state_id)]",
         ondelete='restrict',
-        help="Municipio"
+        help=u"Municipio"
     )
     parish_id = fields.Many2one(
         "res.country.state.municipality.parish",
         string="Parroquia",
         ondelete='restrict',
         domain="[('municipality_id', '=', municipality_id)]",
-        help="Parroquia"
+        help=u"Parroquia"
     )
     l10n_latam_identification_type_id = fields.Many2one(
         'l10n_latam.identification.type', string="Identification Type",
         index=True, auto_join=True,
-        default=lambda self: self.env.ref('l10n_ve_base.it_civ') or False,
+        # default=lambda self: self.env.ref('l10n_ve_base.it_civ'),
         help="The type of identification")
     l10n_ve_responsibility_type_id = fields.Many2one(
-        'l10n_ve.responsibility.type', string='SENIAT Responsibility Type',
+        'l10n_ve.responsibility.type', string='SENIAT Responsibility Type', 
         index=True, help='Defined by SENIAT to identify the type of '
         'responsibilities that a person or a legal entity could have and that '
         'impacts in the type of operations and requirements they need.')
 
-    @api.constrains('vat', 'l10n_latam_identification_type_id')
-    def check_vat(self):
-        """ Since we validate more documents than the vat for Venezuelan partners (RIF, CI) we
-        extend this method in order to process it. """
-        l10n_ve_partners = self.filtered(lambda x: x.l10n_latam_identification_type_id)
-        return super(ResPartner, self - l10n_ve_partners).check_vat()
+    @api.onchange('state_id')
+    def _onchange_state_id(self):
+        if self.state_id:
+            return {
+                'value': {
+                    'municipality_id': '',
+                    'parish_id': ''
+                },
+                'domain': {
+                    'municipality_id': [
+                        ('state_id', '=', self.state_id.id)
+                    ]
+                },
+            }
+        else:
+            return {'domain': {'state_id': []}}
 
-    def _check_unique_vat(self):
-        company_partner_ids = self.env['res.company'].sudo().search([]).mapped('partner_id').ids
-        for partner in self.filtered(lambda p: p.vat):
-            same_vat = self.env['res.partner'].search([
-                ('vat', '=', partner.vat),
-                ('id', '!=', partner.id),
-                ('l10n_latam_identification_type_id', '=', partner.l10n_latam_identification_type_id.id),
-                ('id', 'not in', company_partner_ids),
-            ])
-            if same_vat:
-                child = set(partner.child_ids.ids)
-                if partner.parent_id:
-                    child.add(partner.parent_id.id)
-                if same_vat[0].id not in child:
-                    raise ValidationError(_(
-                        'Ya se encuentra registrado el Número de Identificación %s para el Contacto (%s)'
-                    ) % (partner.vat, same_vat[0].name))
+    @api.onchange('municipality_id')
+    def _onchange_municipality_id(self):
+        if self.municipality_id:
+            return {'value': {'parish_id': ''}}
 
-    @api.model_create_multi
-    def create(self, vals_list):
-        records = super(ResPartner, self).create(vals_list)
-        for record in records:
-            record._check_unique_vat()
-        return records
-
-    def write(self, vals):
-        rec = super(ResPartner, self).write(vals)
-        if 'vat' in vals or 'l10n_latam_identification_type_id' in vals:
-            self._check_unique_vat()
-        return rec
+    @api.onchange('country_id')
+    def _onchange_country(self):
+        return {
+            'value': {
+                'l10n_ve_responsibility_type_id': ''
+            },
+        }

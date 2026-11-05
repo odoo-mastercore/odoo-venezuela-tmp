@@ -7,7 +7,6 @@
 #
 ###############################################################################
 from odoo import models, fields, api, _
-from odoo.tools import format_date
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -21,15 +20,12 @@ class AccountVatLedger(models.Model):
     _inherit = ['mail.thread']
     _order = 'date_from desc'
 
-    _sql_constraints = [
-        ('date_range_check', 'CHECK (date_from <= date_to)', _('La fecha de inicio debe ser anterior a la fecha de fin.')),
-    ]
-
     company_id = fields.Many2one(
         'res.company',
         string='Company',
         required=True,
         readonly=True,
+        states={'draft': [('readonly', False)]},
         default=lambda self: self.env[
             'res.company']._company_default_get('account.vat.ledger')
     )
@@ -41,16 +37,22 @@ class AccountVatLedger(models.Model):
     date_from = fields.Date(
         string='Start Date',
         required=True,
+        readonly=True,
+        states={'draft': [('readonly', False)]},
     )
     date_to = fields.Date(
         string='End Date',
         required=True,
+        readonly=True,
+        states={'draft': [('readonly', False)]},
     )
     journal_ids = fields.Many2many(
         'account.journal', 'account_vat_ledger_journal_rel',
         'vat_ledger_id', 'journal_id',
         string='Journals',
         required=True,
+        readonly=True,
+        states={'draft': [('readonly', False)]},
     )
     state = fields.Selection(
         [('draft', 'Draft'), ('presented', 'Presented'), ('cancel', 'Cancel')],
@@ -61,7 +63,7 @@ class AccountVatLedger(models.Model):
     note = fields.Html(
         "Notes"
     )
-
+    
     # Computed fields
     name = fields.Char(
         'Title',
@@ -71,135 +73,85 @@ class AccountVatLedger(models.Model):
         'Reference',
     )
     invoice_ids = fields.Many2many(
-        'account.move',
+        'account.move', 'account_vat_ledger_invoice_rel',
+        'vat_ledger_id', 'invoice_id',
         string="Invoices",
-        compute="_compute_invoices",
-        store=True
-    )
-    withholding_ids = fields.Many2many(
-        'l10n_ve.payment.withholding',
-        string="Withholdings",
-        compute="_compute_invoices",
         store=True
     )
 
-    @api.depends('journal_ids', 'date_from', 'date_to', 'company_id', 'type')
-    def _compute_invoices(self):
+    def compute_data_invoce(self):
         for rec in self:
-            company_ids = [rec.company_id.id]
-            if rec.company_id.child_ids:
-                company_ids += rec.company_id.child_ids.ids
-            invoices_domain = [
-                ('state', 'not in', ['draft']),
+            invoices_domain = []
+
+            invoices_domain += [
+                ('state', '!=', 'draft'),
+                ('l10n_ve_document_number', '!=', False),
                 ('journal_id', 'in', rec.journal_ids.ids),
-                ('company_id', 'in', company_ids),
-            ]
-            withholdings_domain = [
-                ('payment_id.state', 'in', ['in_process', 'paid']),
-                ('company_id', 'in', company_ids),
-                ('state', '!=', 'cancel'),
+                ('company_id', '=', rec.company_id.id),
             ]
             if rec.type == 'sale':
                 invoices_domain += [
-                    ('move_type', 'in', ['out_invoice', 'out_refund']),
-                    ('l10n_ve_control_number', '!=', False),
-                    ('name', '!=', False),
+                    ('type', 'in',['out_invoice', 'out_refund']),
                     ('invoice_date', '>=', rec.date_from),
-                    ('invoice_date', '<=', rec.date_to),
-                ]
-                withholdings_domain += [
-                    ('tax_id.l10n_ve_withholding_payment_type', '=', 'customer'),
-                    ('tax_id.l10n_ve_withholding_ingoing_type', '=', 'iva'),
-                    # Include withholdings by their own date or by payment date.
-                    # This covers cases where withholding date and payment date differ.
-                    '|',
-                    '&',
-                    ('date', '>=', rec.date_from),
-                    ('date', '<=', rec.date_to),
-                    '&',
-                    ('payment_id.date', '>=', rec.date_from),
-                    ('payment_id.date', '<=', rec.date_to),
-                ]
+                    ('invoice_date', '<=', rec.date_to),]
             elif rec.type == 'purchase':
                 invoices_domain += [
-                    ('move_type', 'in', ['in_invoice', 'in_refund']),
+                    ('type', 'in',['in_invoice', 'in_refund']),
                     ('date', '>=', rec.date_from),
-                    ('date', '<=', rec.date_to),
-                    ('state', '!=', 'cancel'),
-                ]
-                # Se filtra por las caracteristicas del impuesto, igual que la
-                # rama de ventas de arriba, y no por un xmlid concreto.
-                # account.<id_compania>_tax_retencion_iva lo creaba la plantilla
-                # contable de 15 al instanciarla; en 18 ese registro puede no
-                # existir, y env.ref sin raise_if_not_found=False dentro de un
-                # compute no devuelve un vacio: revienta la carga entera del
-                # registro.
-                withholdings_domain += [
-                    ('tax_id.l10n_ve_withholding_payment_type', '=', 'supplier'),
-                    ('tax_id.l10n_ve_withholding_ingoing_type', '=', 'iva'),
-                    ('date', '>=', rec.date_from),
-                    ('date', '<=', rec.date_to),
-                ]
-            rec.invoice_ids = rec.env['account.move'].search(
-                invoices_domain,
-                order='invoice_date desc, l10n_ve_control_number desc'
-            )
-            rec.withholding_ids = rec.env['l10n_ve.payment.withholding'].search(
-                withholdings_domain,
-                order='name desc'
-            )
-            
-    @api.depends('type', 'reference')
+                    ('date', '<=', rec.date_to),]
+            rec.invoice_ids = rec.env['account.move'].search(invoices_domain,
+                order='l10n_ve_document_number desc')
+    
+    @api.depends('type', 'reference',)
     def _compute_name(self):
+        date_format = self.env['res.lang']._lang_get(
+            self._context.get('lang', 'en_US')).date_format
         for rec in self:
             if rec.type == 'sale':
-                ledger_type = _('Ventas')
+                ledger_type = _('Sales')
             elif rec.type == 'purchase':
-                ledger_type = _('Compras')
-            # Usar format_date para aplicar localización
+                ledger_type = _('Purchases')
             if rec.date_from and rec.date_to:
                 name = _("Libro IVA ({0})  {1} - {2}").format(
                     ledger_type,
-                    format_date(self.env, rec.date_from),
-                    format_date(self.env, rec.date_to),
+                    rec.date_from and fields.Date.from_string(
+                        rec.date_from).strftime(date_format) or '',
+                    rec.date_to and fields.Date.from_string(
+                        rec.date_to).strftime(date_format) or ''
                 )
             else:
-                name = _("Libro IVA (%s)") % (ledger_type,)
+                name = _("Libro IVA (%s)") % (
+                    ledger_type,
+                )
+            if rec.reference:
+                name = "%s - %s" % (name, rec.reference)
             rec.name = name
 
  
 
-    @api.onchange('company_id', 'type')
+    @api.onchange('company_id')
     def change_company(self):
-        self.ensure_one()
-        domain = []
         if self.type == 'sale':
-            domain.append(('type', '=', 'sale'))
+            domain = [('type', '=', 'sale')]
         elif self.type == 'purchase':
-            domain.append(('type', '=', 'purchase'))
-        if self.company_id.child_ids:
-            domain.extend([
-                '|',
-                ('company_id', 'in', self.company_id.child_ids.ids),
-                ('company_id', '=', self.company_id.id)
-            ])
-        else:
-            domain.append(('company_id', '=', self.company_id.id))
+            domain = [('type', '=', 'purchase')]
+        domain += [('company_id', '=', self.company_id.id),]
         journals = self.env['account.journal'].search(domain)
-        self.journal_ids = [(6, 0, journals.ids)]
+        self.journal_ids = journals
 
     def action_present(self):
-        self.write({'state': 'presented'})
+        self.state = 'presented'
 
     def action_cancel(self):
-        self.write({'state': 'cancel'})
+        self.state = 'cancel'
 
     def action_to_draft(self):
-        self.write({'state': 'draft'})
+        self.state = 'draft'
 
     def action_print(self):
         self.ensure_one()
         model_name = \
             "l10n_ve_vat_ledger.action_account_vat_ledger_report_xlsx"
-        report = self.env.ref(model_name)
-        return report.report_action(self, data={'report_file': self.display_name})
+        self.env.ref(model_name).report_file = self.display_name
+
+        return self.env.ref(model_name).report_action(self)

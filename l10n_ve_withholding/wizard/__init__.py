@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 ###############################################################################
 # Author: SINAPSYS GLOBAL SA || MASTERCORE SAS
 # Copyleft: 2020-Present.
@@ -7,4 +6,3 @@
 #
 ###############################################################################
 from . import account_move_reverse
-from . import account_debit_note

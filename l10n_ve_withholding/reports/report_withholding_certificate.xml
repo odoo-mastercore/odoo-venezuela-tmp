@@ -6,18 +6,16 @@
             <div class="page">
                 <div>
                     <br/>
-                    <t t-set="report_date" t-value="o.date"/>
-                    <t t-set="report_number" t-value="o.name"/>
-                    <t t-set="report_name" t-value="'COMPROBANTE DE RETENCIÓN ISLR'"/>
+                    <t t-set="report_date" t-value="o.payment_date"/>
+                    <t t-set="report_number" t-value="o.withholding_number or o.name"/>
+                    <t t-set="report_name" t-value="'CERTIFICADO DE RETENCIÓN'"/>
                     <t t-set="header_address" t-value="o.company_id.partner_id"/>
                     <div class="text-right">
                         <h4><b><t t-esc="report_name"/></b></h4>
-                        <small>REGLAMENTO PARCIAL DE LA LEY DE IMPUESTO SOBRE LA RENTA EN MATERIA DE RETENCIONES Decreto N° 1.808 de fecha 23 de abril de 1997. Gaceta Oficial N° 36.203 de fecha 12 de mayo de 1997.
-"Artículo 24: Los agentes de retención están obligados a entregar a  los contribuyentes, un comprobante por cada retención de impuesto que les practiquen en el cual se indique, entre otra información, el monto de lo pagado o abonado en cuenta y la cantidad retenida. (...)"</small>
                         <p style="font-size: 14px;">
                             <b>N° de Comprobante: </b><span t-esc="report_number"/><br/>
-                            <b>Fecha de emisión: </b><span t-esc="report_date.strftime('%d-%m-%Y')"/><br/>
-                            <b>Periodo Fiscal: </b><span t-esc="o.payment_id._get_fiscal_period(report_date)"/>
+                            <b>Fecha de emisión: </b><span t-esc="report_date"/><br/>
+                            <b>Periodo Fiscal: </b><span t-esc="o._get_fiscal_period(report_date)"/>
                         </p>
                     </div>
                 </div><br/>
@@ -26,37 +24,20 @@
 
                         <!-- IDENTIFICACION (SUJETO A RETENCIÓN) -->
 
-                        <t t-if="not o.payment_id.l10n_ve_third_partner_withholding">
-                            <!-- (1) Apellido uy Nombre: Denominicacion o Razon Social -->
-                            <strong>Sujeto a Retención: </strong><span t-field="o.partner_id.name"/>
-                            <!-- (2) RIF -->
-                            <t t-if="o.partner_id.vat and o.partner_id.l10n_latam_identification_type_id.name">
-                                <br/>
-                                <strong>R.I.F:</strong> 
-                                <span t-field="o.partner_id.l10n_latam_identification_type_id.l10n_ve_code"/>-<span t-field="o.partner_id.vat"/>
-                            </t>
+                        <!-- (1) Apellido uy Nombre: Denominicacion o Razon Soclial -->
+                        <strong>Sujeto a Retención: </strong><span t-field="o.partner_id.name"/>
+                        <!-- (2) RIF -->
+                        <t t-if="o.partner_id.vat and o.partner_id.l10n_latam_identification_type_id.name">
+                            <br/>
+                            <strong>R.I.F:</strong> <span t-field="o.partner_id.l10n_latam_identification_type_id.l10n_ve_code"/>-<span t-field="o.partner_id.vat"/>
+
                         </t>
-                        <t t-else="">
-                            <!-- (1) Apellido uy Nombre: Denominicacion o Razon Social -->
-                            <strong>Sujeto a Retención: </strong><span t-field="o.payment_id.l10n_ve_third_partner_id.name"/>
-                            <!-- (2) RIF -->
-                            <t t-if="o.payment_id.l10n_ve_third_partner_id.vat and o.payment_id.l10n_ve_third_partner_id.l10n_latam_identification_type_id.name">
-                                <br/>
-                                <strong>R.I.F:</strong> 
-                                <span t-field="o.payment_id.l10n_ve_third_partner_id.l10n_latam_identification_type_id.l10n_ve_code"/>-<span t-field="o.payment_id.l10n_ve_third_partner_id.vat"/>
-                            </t>
-                        </t>  
                         <!-- (3) Responsabilidad -->
                         <br/>
                         <strong>Tipo de Contribuyente: </strong><span t-field="o.partner_id.l10n_ve_responsibility_type_id"/>
                         <!-- (4) Domicilio Comercial -->
                         <br/>
-                        <t t-if="not o.payment_id.l10n_ve_third_partner_withholding">
-                            <span t-esc="o.partner_id" t-options="{'widget': 'contact', 'fields': ['address'], 'no_marker': True, 'no_tag_br': True}"/>
-                        </t>
-                        <t t-else="">
-                            <span t-esc="o.payment_id.l10n_ve_third_partner_id" t-options="{'widget': 'contact', 'fields': ['address'], 'no_marker': True, 'no_tag_br': True}"/>
-                        </t>
+                        <span t-esc="o.partner_id" t-options='{"widget": "contact", "fields": ["address"], "no_marker": True, "no_tag_br": True}'/>
 
                     </div>
                 </div>
@@ -72,59 +53,23 @@
                                 Por Concepto:
                             </td>
                             <td class="text-left">
-                                <span t-field="o.l10n_ve_regimen_islr_id"/>
+                                <span t-field="o.payment_group_id.regimen_islr_id.code_seniat"/> - <span t-field="o.payment_group_id.regimen_islr_id.activity_name"/>
                             </td>
                         </tr>
-                        <t t-foreach="o.payment_id.invoice_ids" t-as="i">
-                            <tr>
-                                <t t-if="i.move_type == 'in_refund'">
-                                    <td class="text-right">
-                                        Factura afectada:
-                                    </td>
-                                    <td class="text-left" >
-                                        <span t-field="i.reversed_entry_id.ref"/>
-                                    </td>
-                                </t>
-                                <t t-elif="i.move_type == out_invoice">
-                                    <td class="text-right">
-                                        Factura:
-                                    </td>
-                                    <td class="text-left" >
-                                        <span t-field="i.name"/>
-                                    </td>
-                                </t>
-                                <t t-else="">
-                                    <td class="text-right">
-                                        Factura:
-                                    </td>
-                                    <td class="text-left" >
-                                        <span t-field="i.ref"/>
-                                    </td>
-                                </t>
-                            </tr>
-                            <tr>
-                                <td class="text-right">
-                                    Fecha de factura afectada:
-                                </td>
-                                <td class="text-left">
-                                    <span t-field="i.invoice_date"/>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="text-right">
-                                    Número de control:
-                                </td>
-                                <td class="text-left">
-                                    <span t-field="i.l10n_ve_control_number"/>
-                                </td>
-                            </tr>
-                        </t>
-                        <tr t-if="o._get_sustraendo()">
+                        <tr>
                             <td class="text-right">
-                                Sustraendo:
+                                Comprobante que origina la retención:
                             </td>
                             <td class="text-left">
-                                <span t-esc="o._get_sustraendo()"/>
+                                <t t-foreach="o.payment_group_id.to_pay_move_line_ids" t-as="i">
+                                    Nro: <span t-field="i.move_id.l10n_ve_document_number"/>, 
+                                    <t t-if="i.move_id.type == out_invoice">
+                                        Fact: <span t-field="i.move_id.name"/>
+                                    </t>
+                                    <t t-else="">
+                                        Fact: <span t-field="i.move_id.ref"/>
+                                    </t>
+                                </t>
                             </td>
                         </tr>
                         <tr>
@@ -132,7 +77,7 @@
                                 Importe del comprobante que origina la retención:
                             </td>
                             <td class="text-left">
-                                 <span t-esc="o.payment_id._format_miles_number(o.base_amount)"/>
+                                <span t-field="o.withholding_base_amount"/>
                             </td>
                         </tr>
                         <tr>
@@ -140,7 +85,7 @@
                                 Porcentaje Aplicado:
                             </td>
                             <td class="text-left">
-                                <span t-field="o.l10n_ve_regimen_islr_id.banda_calculo_ids.withholding_percentage"/>
+                                <span t-field="o.comment_withholding"/>
                             </td>
                         </tr>
                         <tr>
@@ -148,27 +93,22 @@
                                 Importe de la retención:
                             </td>
                             <td class="text-left">
-                                <span t-esc="o.payment_id._format_miles_number(o.amount)"/>
+                                <span t-field="o.amount"/>
                             </td>
                         </tr>
                     </tbody>
                 </table>
-                <br/><br/>
+                <br/><br/><br/>
             </div>
             <div class="row">
-                <br/><br/>
+                <br/><br/><br/>
                 <div class="col-2"></div>
                 <div name="footer_left_column" class="col-4">
-                    <img t-if="o.company_id.l10n_ve_withholding_signature and not o.company_id.parent_id.l10n_ve_withholding_signature" t-att-src="image_data_uri(o.company_id.l10n_ve_withholding_signature)" width="200px" height="100px"/>
-                    <img t-elif="o.company_id.parent_id.l10n_ve_withholding_signature" t-att-src="image_data_uri(o.company_id.parent_id.l10n_ve_withholding_signature)" width="200px" height="100px"/>
-                    <br/>
-                        Agente de Retención
+                    ________________________ <br/>
+                    Agente de Retención
                 </div>
                 <div class="col-2"></div>
                 <div name="footer_right_column" class="col-4">
-                    <br/>
-                    <br/>
-                    <br/>
                     _______________________<br/>
                     Beneficiario
                 </div>
@@ -185,46 +125,14 @@
         </t>
     </template>
 
-    <record id="action_report_withholding_certificate" model="ir.actions.report">
-        <field name="name">Comprobante de Retención ISLR</field>
-        <field name="model">l10n_ve.payment.withholding</field>
-        <field name="report_type">qweb-pdf</field>
-        <field name="paperformat_id" ref="base.paperformat_us"/>
-        <field name="print_report_name">'Comprobante de Retención - %s' % (object.name or '')</field>
-        <!-- En 15 este registro traia attachment con la expresion
-             "object.withholding_number", y el campo se llamaba asi sobre
-             account.payment. Aqui el informe es de l10n_ve.payment.withholding
-             y el numero es 'name'.
-
-             Hay que declararlo vacio, no basta con omitirlo: al actualizar el
-             modulo Odoo solo escribe los campos que el XML declara, asi que en
-             una base venida de 15 la columna conserva la expresion vieja y
-             cualquier impresion muere en safe_eval con
-
-               AttributeError: 'l10n_ve.payment.withholding' object has no
-               attribute 'withholding_number'
-
-             Se deja vacio a proposito: en 18 el nombre del PDF sale de
-             print_report_name y el informe no se guarda como adjunto. -->
-        <field name="attachment"></field>
-        <!-- En 15 este registro se anclaba al formulario de pago:
-                 <field name="binding_model_id" ref="model_account_payment"/>
-             y de ahi salia la entrada "Certificado de Retencion" del menu
-             Imprimir. En 18 el informe ya no es de account.payment sino de
-             l10n_ve.payment.withholding, asi que ese anclaje manda el id del
-             PAGO a un informe que espera el de la RETENCION:
-
-               MissingError: El registro no existe o fue eliminado.
-               (Registro: l10n_ve.payment.withholding(299735,))
-
-             Vacio y no omitido, por lo mismo que attachment: actualizar el
-             modulo no borra lo que el XML no declara. En 18 se imprime desde
-             el boton de impresora de la linea de retencion
-             (views/account_payment_view.xml), que si corre sobre el registro
-             correcto. -->
-        <field name="binding_model_id" eval="False"/>
-        <field name="report_name">l10n_ve_withholding.report_withholding_certificate</field>
-        <field name="report_file">l10n_ve_withholding.report_withholding_certificate</field>
-    </record>
+    <report
+        string="Certificado de Retención"
+        id="action_report_withholding_certificate"
+        model="account.payment"
+        report_type="qweb-pdf"
+        name="l10n_ve_withholding.report_withholding_certificate"
+        file="l10n_ve_withholding.report_withholding_certificate"
+        print_report_name="'Certificado de Retención - %s' % (object.withholding_number or '')"
+    />
 
 </odoo>

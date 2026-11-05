@@ -2,11 +2,11 @@
 <odoo>
     <template id="report_withholding_certificate_document_iva">
         <t t-call="web.external_layout">
-            <t t-set="o" t-value="o.with_context(lang=lang)"/>
-                <t t-set="report_date" t-value="o.date"/>
-                <t t-set="report_number" t-value="o.name"/>
-                <t t-set="report_name" t-value="'COMPROBANTE DE RETENCIÓN DEL IMPUESTO AL VALOR AGREGADO IVA'"/>
-                <!-- <t t-set="report_subname"
+            <t t-set="o" t-value="o.with_context(lang=lang)" />
+                <t t-set="report_date" t-value="o.payment_date"/>
+                <t t-set="report_number" t-value="o.withholding_number or o.name"/>
+                <t t-set="report_name" t-value="'CERTIFICADO DE RETENCIÓN DEL IMPUESTO AL VALOR AGREGADO IVA'"/>
+                <!-- <t t-set="report_subname" 
                     t-value=""/> -->
             <div class="page">
                 <div>
@@ -15,15 +15,19 @@
                     <br/><br/>
                     <h4><b><t t-esc="report_name"/></b></h4>
                     <p style="font-size: 12px;">
-                    Decreto con Rango, Valor y Fuerza de Ley de Reforma de la ley de impuestos al valor agragado No. 6.507 del 29 de enero del 2020<br/>
-                    Articulo 11: " La Administración Tributaria podrá designar como responsables del pago del impuesto, en calidad de agentes de retención, a quienes por sus funciones públicas o por razón de sus actividades privadas
-intervengan en operaciones gravadas con el impuesto establecido en este decreto con Rango, Valor y Fuerza de Ley. (...)"
+                    Decreto con Rango, Valor y Fuerza de Ley de Reforma de la 
+                    ley de impuestos al valor agragado No. 1.436 del 17 de noviembre del 2014<br/>
+                    Articulo 11: " La Administración Tributaria podrá designar como responsables del
+                    pago   del   impuesto,   en   calidad   de   agentes   de   retención,   a   quienes   por   sus
+                    funciones   públicas   o   por   razón   de   sus   actividades   privadas<br/>  intervengan   en
+                    operaciones gravadas con el impuesto establecido en este decreto con Ragon, Valor y Fuerza de Ley. (...)"
                     </p><br/>
                     <div class="text-right">
                         <p style="font-size: 14px;">
                             <b>N° de Comprobante: </b><span t-esc="report_number"/><br/>
-                            <b>Fecha de emisión: </b><span t-esc="report_date.strftime('%d-%m-%Y')"/><br/>
-                            <b>Periodo Fiscal: </b><span t-esc="o.payment_id._get_fiscal_period(report_date)"/>
+                            <b>Fecha de emisión: </b><span t-esc="report_date"/><br/>
+                            <b>Periodo Fiscal: </b><span t-esc="o._get_fiscal_period(report_date)"/>
+                            
                         </p>
                     </div>
                 </div><br/>
@@ -31,54 +35,35 @@ intervengan en operaciones gravadas con el impuesto establecido en este decreto 
                     <div class="col-6">
 
                         <!-- IDENTIFICACION (SUJETO A RETENCIÓN) -->
-                        <t t-if="not o.payment_id.l10n_ve_third_partner_withholding">
-                            <!-- (1) Apellido uy Nombre: Denominicacion o Razon Social -->
-                            <strong>Sujeto a Retención: </strong><span t-field="o.partner_id.name"/>
-                            <!-- (2) RIF -->
-                            <t t-if="o.partner_id.vat and o.partner_id.l10n_latam_identification_type_id.name">
-                                <br/>
-                                <strong>R.I.F:</strong> 
-                                <span t-field="o.partner_id.l10n_latam_identification_type_id.l10n_ve_code"/>-<span t-field="o.partner_id.vat"/>
-                            </t>
+                        <!-- (1) Apellido uy Nombre: Denominicacion o Razon Social -->
+                        <strong>Sujeto a Retención: </strong><span t-field="o.partner_id.name"/>
+                        <!-- (2) RIF -->
+                        <t t-if="o.partner_id.vat and o.partner_id.l10n_latam_identification_type_id.name">
+                            <br/>
+                            <strong>R.I.F:</strong> <span t-field="o.partner_id.l10n_latam_identification_type_id.l10n_ve_code"/>-<span t-field="o.partner_id.vat"/>
                         </t>
-                        <t t-else="">
-                            <!-- (1) Apellido uy Nombre: Denominicacion o Razon Social -->
-                            <strong>Sujeto a Retención: </strong><span t-field="o.payment_id.l10n_ve_third_partner_id.name"/>
-                            <!-- (2) RIF -->
-                            <t t-if="o.payment_id.l10n_ve_third_partner_id.vat and o.payment_id.l10n_ve_third_partner_id.l10n_latam_identification_type_id.name">
-                                <br/>
-                                <strong>R.I.F:</strong> 
-                                <span t-field="o.payment_id.l10n_ve_third_partner_id.l10n_latam_identification_type_id.l10n_ve_code"/>-<span t-field="o.payment_id.l10n_ve_third_partner_id.vat"/>
-                            </t>
-                        </t>                        
                         <!-- (3) Responsabilidad -->
                         <br/>
                         <strong>Tipo de Contribuyente: </strong><span t-field="o.partner_id.l10n_ve_responsibility_type_id"/>
                         <!-- (4) Domicilio Comercial -->
                         <br/>
-                        <t t-if="not o.payment_id.l10n_ve_third_partner_withholding">
-                            <span t-esc="o.partner_id" t-options="{'widget': 'contact', 'fields': ['address'], 'no_marker': True, 'no_tag_br': True}"/>
-                        </t>
-                        <t t-else="">
-                            <span t-esc="o.payment_id.l10n_ve_third_partner_id" t-options="{'widget': 'contact', 'fields': ['address'], 'no_marker': True, 'no_tag_br': True}"/>
-                        </t>
+                        <span t-esc="o.partner_id" t-options='{"widget": "contact", "fields": ["address"], "no_marker": True, "no_tag_br": True}'/>
 
                     </div>
                     <div class="col-6">
 
                         <!-- IDENTIFICACION (AGENTE DE RETENCIÓN) -->
                         <!-- (1) Apellido uy Nombre: Denominicacion o Razon Social -->
-                        <t t-set="company" t-value="o.company_id.parent_id if o.company_id.parent_id else o.company_id"/>
-                        <strong>Razon Social del Agente de Retención: </strong><span t-field="company.name"/>
+                        <strong>Razon Social del Agente de Retención: </strong><span t-field="o.company_id.name"/>
                         <!-- (2) RIF -->
                         <br/>
-                        <strong>R.I.F:</strong> <span t-field="company.partner_id.l10n_latam_identification_type_id.l10n_ve_code"/>-<span t-field="company.vat"/>
+                        <strong>R.I.F:</strong> <span t-field="o.company_id.partner_id.l10n_latam_identification_type_id.l10n_ve_code"/>-<span t-field="o.company_id.vat"/>
                         <!-- (3) Responsabilidad -->
                         <br/>
-                        <strong>Tipo de Contribuyente: </strong><span t-field="company.l10n_ve_responsibility_type_id"/>
+                        <strong>Tipo de Contribuyente: </strong><span t-field="o.company_id.l10n_ve_responsibility_type_id"/>
                         <!-- (4) Domicilio Comercial -->
                         <br/>
-                        <span t-esc="company.partner_id" t-options='{"widget": "contact", "fields": ["address"], "no_marker": True, "no_tag_br": True}'/>
+                        <span t-esc="o.company_id.partner_id" t-options='{"widget": "contact", "fields": ["address"], "no_marker": True, "no_tag_br": True}'/>
 
                     </div>
                 </div>
@@ -98,125 +83,41 @@ intervengan en operaciones gravadas con el impuesto establecido en este decreto 
                             <th class="text-center"><strong>Compras sin crédito</strong></th>
                             <th class="text-center"><strong>Base Imponible</strong></th>
                             <th class="text-center"><strong>% Alic</strong></th>
-                            <th class="text-center"><strong>% Ret</strong></th>
                             <th class="text-center"><strong>Monto IVA</strong></th>
                             <th class="text-center"><strong>IVA Retenido</strong></th>
                         </tr>
                     </thead>
-                        <tbody>
-                            <t t-set="total_base" t-value="0"></t>
-                            <t t-set="total_iva" t-value="0"></t>
-                            <t t-set="total_retenido" t-value="0"></t>
-                            <t t-foreach="o._get_withholding_lines().get('lines')" t-as="distribution">
-                                <t t-set="is_credit_note" t-value="distribution['move_type'] in ('in_refund', 'out_refund')"/>
-                                <t t-set="is_debit_note" t-value="distribution.get('is_debit_note', False) and not is_credit_note"/>
-                                <tr>
-                                    <!-- No (Índice de la iteración) -->
-                                    <th class="text-center"><span t-esc="distribution['index']"/></th>
-                                    <!-- Fecha Dto -->
-                                    <th class="text-center"><span t-esc="distribution['date']"/></th>
-                                    <!-- Número de factura -->
-                                    <th class="text-center" t-if="not is_credit_note and not is_debit_note">
-                                        <span t-esc="distribution['move_ref']"/></th>
-                                    <th t-else=""/>
-                                    <!-- Número de Control -->
-                                    <th class="text-center">
-                                        <span t-esc="distribution['l10n_ve_control_number']"/></th>
-                                    <!-- Número N/D -->
-                                    <th class="text-center">
-                                        <span t-if="is_debit_note" t-esc="distribution['move_ref']"/>
-                                    </th>
-                                    <!-- Número N/C -->
-                                    <th class="text-center" t-if="is_credit_note">
-                                        <span t-esc="distribution['move_ref']"/>
-                                    </th>
-                                    <th class="text-center" t-else=""/>
-                                    <!-- Tipo (01/02/03) -->
-                                    <th class="text-center" t-if="is_credit_note">03</th>
-                                    <th class="text-center" t-elif="is_debit_note">02</th>
-                                    <th class="text-center" t-else="">01</th>
-
-                                    <!-- Documento afectado por la NC o ND -->
-                                    <th class="text-center">
-                                        <span t-esc="distribution.get('affected_document_number', '')"/>
-                                    </th>
-                                    <!-- Total Compra con IVA -->
-                                    <th class="text-center"><span t-esc="distribution['amount_total']"/></th>
-                                    <!-- Compras sin crédito -->
-                                    <th class="text-center"><span t-esc="distribution['amount_untaxed']"/></th>
-                                    <!-- Base Imponible -->
-                                    <th class="text-center"><span t-esc="distribution['tax_base_amount_formated']"/></th>
-                                    <t t-set="total_base" t-value="total_base + distribution['tax_base_amount']"></t>
-                                    <!-- % Alic -->
-                                    <th class="text-center"><span t-esc="distribution['tax_name']"/></th>
-                                    <!-- % Ret -->
-                                    <th class="text-center"><span t-esc="distribution['partner_vat_retention']"/></th>
-                                    <!-- Monto IVA -->
-                                    <th class="text-center"><span t-esc="distribution['tax_debit_formated']"/></th>
-                                    <t t-set="total_iva" t-value="total_iva + distribution['tax_debit']"></t>
-                                    <!-- IVA Retenido -->
-                                    <th class="text-center"><span t-esc="distribution['tax_amount_formated']"/></th>
-                                    <t t-set="total_retenido" t-value="total_retenido + distribution['tax_amount']"></t>
-
-                                </tr>
-                            </t>
-                            <t t-if="len(o._get_withholding_lines()) > 1">
-                                <t t-set="totals" t-value="o._get_withholding_lines().get('total')"/>
-                                <tr>
-                                    <!-- No (Índice de la iteración) -->
-                                    <th class="text-center"></th>
-                                    <!-- Fecha Dto -->
-                                    <th class="text-center"></th>
-                                    <!-- Número de factura -->
-                                    <th class="text-center"></th>
-                                    <!-- Número de Control -->
-                                    <th class="text-center"></th>
-                                    <!-- Número N/D (no implementado) -->
-                                    <th class="text-center"/>
-                                    <!-- Número N/C -->
-                                    <th class="text-center"></th>
-                                    <!-- Tipo (03/01) -->
-                                    <th class="text-center"></th>
-
-                                    <!-- Dto Afectado (referencia de reverso) -->
-                                    <th class="text-center"><strong>TOTALES</strong></th>
-                                    <!-- Total Compra con IVA -->
-                                    <th class="text-center"></th>
-                                    <!-- Compras sin crédito -->
-                                    <th class="text-center"></th>
-                                    <!-- Base Imponible -->
-                                    <th class="text-center"><span t-esc="totals.get('total_base')"/></th>
-                                    <!-- % Alic -->
-                                    <th class="text-center"></th>
-                                    <!-- % Ret -->
-                                    <th class="text-center"></th>
-                                    <!-- Monto IVA -->
-                                    <th class="text-center"><span t-esc="totals.get('total_iva')"/></th>
-                                    <!-- IVA Retenido -->
-                                    <th class="text-center"><span t-esc="totals.get('total_retenido')"/></th>
-                                </tr>
-                            </t>
+                    <tbody>
+                        <tr>
+                            <th class="text-center">1</th>
+                            <th class="text-center"><span t-esc="report_date"/></th>
+                            <th class="text-center"><span t-field="o.communication"/></th>
+                            <th class="text-center"><span t-field="o.communication"/></th>
+                            <th class="text-center"></th>
+                            <th class="text-center"></th>
+                            <th class="text-center">01</th>
+                            <th class="text-center"></th>
+                            <th class="text-center"><span t-field="o.total_amount"/></th>
+                            <th class="text-center">0,00</th>
+                            <th class="text-center"><span t-field="o.withholdable_invoiced_amount"/></th>
+                            <th class="text-center"><span t-field="o.tax_withholding_id.description"/></th>
+                            <th class="text-center"><span t-field="o.withholdable_base_amount"/></th>
+                            <th class="text-center"><span t-field="o.computed_withholding_amount"/></th>
+                        </tr>
                     </tbody>
                 </table>
-
-                <br/><br/>
-                <small> Este comprobante se emite según lo establecido en el Artículo N° 16 de la Providencia Administrativa N° SNAT/2025/000054 de fecha 02/07/2025 Publicada Gaceta Oficial N° 43.171 de fecha 16 de julio de 2025.</small>
-                <br/>
+                
+                <br/><br/><br/>
             </div>
             <div class="row">
                 <br/><br/><br/>
-                <div class="col-2"/>
-                    <div name="footer_left_column" class="col-4">
-                        <img t-if="o.company_id.l10n_ve_withholding_signature and not o.company_id.parent_id.l10n_ve_withholding_signature" t-att-src="image_data_uri(o.company_id.l10n_ve_withholding_signature)" width="200px" height="100px"/>
-                    <img t-elif="o.company_id.parent_id.l10n_ve_withholding_signature" t-att-src="image_data_uri(o.company_id.parent_id.l10n_ve_withholding_signature)" width="200px" height="100px"/>
-                        <br/>
-                            Agente de Retención
-                    </div>
-                <div class="col-2"/>
+                <div class="col-2"></div>
+                <div name="footer_left_column" class="col-4">
+                    ________________________ <br/>
+                    Agente de Retención
+                </div>
+                <div class="col-2"></div>
                 <div name="footer_right_column" class="col-4">
-                    <br/>
-                    <br/>
-                    <br/>
                     _______________________<br/>
                     Beneficiario
                 </div>
@@ -250,34 +151,15 @@ intervengan en operaciones gravadas con el impuesto establecido en este decreto 
         <field name="orientation">Landscape</field>
     </record>
 
-    <record id="action_report_withholding_certificate_iva" model="ir.actions.report">
-        <field name="name">Comprobante de Retención de IVA</field>
-        <field name="model">l10n_ve.payment.withholding</field>
-        <field name="report_type">qweb-pdf</field>
-        <field name="paperformat_id" ref="report_qweb_paperformat_l"/>
-        <field name="print_report_name">'Comprobante de Retención - %s' % (object.name or '')</field>
-        <!-- Vacio a proposito, igual que en report_withholding_certificate:
-             omitirlo dejaria viva la expresion de 15 sobre withholding_number,
-             campo que en 18 se llama name. -->
-        <field name="attachment"></field>
-        <!-- En 15 este registro se anclaba al formulario de pago:
-                 <field name="binding_model_id" ref="model_account_payment"/>
-             y de ahi salia la entrada "Certificado de Retencion" del menu
-             Imprimir. En 18 el informe ya no es de account.payment sino de
-             l10n_ve.payment.withholding, asi que ese anclaje manda el id del
-             PAGO a un informe que espera el de la RETENCION:
-
-               MissingError: El registro no existe o fue eliminado.
-               (Registro: l10n_ve.payment.withholding(299735,))
-
-             Vacio y no omitido, por lo mismo que attachment: actualizar el
-             modulo no borra lo que el XML no declara. En 18 se imprime desde
-             el boton de impresora de la linea de retencion
-             (views/account_payment_view.xml), que si corre sobre el registro
-             correcto. -->
-        <field name="binding_model_id" eval="False"/>
-        <field name="report_name">l10n_ve_withholding.report_withholding_certificate_iva</field>
-        <field name="report_file">l10n_ve_withholding.report_withholding_certificate_iva</field>
-    </record>
+    <report
+        string="Certificado de Retención"
+        id="action_report_withholding_certificate_iva"
+        model="account.payment"
+        report_type="qweb-pdf"
+        name="l10n_ve_withholding.report_withholding_certificate_iva"
+        file="l10n_ve_withholding.report_withholding_certificate_iva"
+        print_report_name="'Certificado de Retención - %s' % (object.withholding_number or '')"
+        paperformat="report_qweb_paperformat_l"
+    />
 
 </odoo>
