@@ -39,7 +39,8 @@
                     <field name="street2" placeholder="Calle 2..." class="o_address_street"/>
                 </div>
             </xpath>
-            <xpath expr="//field[@name='bank_ids']" position="replace">
+            <!-- Esto ya no es necesario. el widget 'many2many_tags_banks' compensa esto perfecto -->
+            <!-- <xpath expr="//field[@name='bank_ids']" position="replace">
                 <field name="bank_ids" nolabel="1">
                     <list editable="bottom">
                         <field name="bank_id"/>
@@ -48,9 +49,29 @@
                         <field name="acc_holder_name" invisible="1"/>
                     </list>
                 </field>
-            </xpath>
+            </xpath> -->
             <xpath expr="//group//group[1]" position="inside">
                 <field name="l10n_ve_responsibility_type_id" string="SENIAT Responsibility" options="{'no_open': True, 'no_create': True}" readonly="parent_id != False"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_partner_latam_form_inherit_l10n_ve" model="ir.ui.view">
+        <field name="name">view.partner.latam.form.inherit.l10n.ve</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="l10n_latam_base.view_partner_latam_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//label[@for='l10n_latam_identification_type_id']" position="attributes">
+                <attribute name="invisible">is_vat and 'LATAMID' not in fiscal_country_group_codes and 'VE' not in fiscal_country_codes</attribute>
+            </xpath>
+            <xpath expr="//label[@for='vat']" position="attributes">
+                <attribute name="invisible">not is_vat or 'LATAMID' in fiscal_country_group_codes or 'VE' in fiscal_country_codes</attribute>
+            </xpath>
+            <xpath expr="//field[@name='l10n_latam_identification_type_id']" position="attributes">
+                <attribute name="invisible">is_vat and 'LATAMID' not in fiscal_country_group_codes and 'VE' not in fiscal_country_codes</attribute>
+            </xpath>
+            <xpath expr="//field[@name='l10n_latam_identification_type_id']/following-sibling::span[1]" position="attributes">
+                <attribute name="invisible">is_vat and 'LATAMID' not in fiscal_country_group_codes and 'VE' not in fiscal_country_codes</attribute>
             </xpath>
         </field>
     </record>

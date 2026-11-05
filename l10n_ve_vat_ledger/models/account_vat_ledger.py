@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 ##############################################################################
-# Author: SINAPSYS GLOBAL SA || MASTERCORE SAS
-# Copyleft: 2020-Present.
-# License LGPL-3.0 or later (http: //www.gnu.org/licenses/lgpl.html).
+# Author: Mastercore Sinapsys Global®
+# Copyright: 2019-Present.
+# License OPL-1 (Odoo Proprietary License v1.0)
+# See https://www.odoo.com/documentation/master/legal/licenses.html
 #
 #
-###############################################################################
-from odoo import models, fields, api, _
+##############################################################################
+from odoo import Command, _, api, fields, models
 from odoo.tools import format_date
 import logging
 
@@ -21,17 +22,17 @@ class AccountVatLedger(models.Model):
     _inherit = ['mail.thread']
     _order = 'date_from desc'
 
-    _sql_constraints = [
-        ('date_range_check', 'CHECK (date_from <= date_to)', _('La fecha de inicio debe ser anterior a la fecha de fin.')),
-    ]
+    _date_range_check = models.Constraint(
+        'CHECK (date_from <= date_to)',
+        'La fecha de inicio debe ser anterior a la fecha de fin.',
+    )
 
     company_id = fields.Many2one(
         'res.company',
         string='Company',
         required=True,
         readonly=True,
-        default=lambda self: self.env[
-            'res.company']._company_default_get('account.vat.ledger')
+        default=lambda self: self.env.company,
     )
     type = fields.Selection(
         [('sale', 'Sale'), ('purchase', 'Purchase')],
@@ -127,13 +128,6 @@ class AccountVatLedger(models.Model):
                     ('date', '<=', rec.date_to),
                     ('state', '!=', 'cancel'),
                 ]
-                # Se filtra por las caracteristicas del impuesto, igual que la
-                # rama de ventas de arriba, y no por un xmlid concreto.
-                # account.<id_compania>_tax_retencion_iva lo creaba la plantilla
-                # contable de 15 al instanciarla; en 18 ese registro puede no
-                # existir, y env.ref sin raise_if_not_found=False dentro de un
-                # compute no devuelve un vacio: revienta la carga entera del
-                # registro.
                 withholdings_domain += [
                     ('tax_id.l10n_ve_withholding_payment_type', '=', 'supplier'),
                     ('tax_id.l10n_ve_withholding_ingoing_type', '=', 'iva'),
@@ -186,7 +180,7 @@ class AccountVatLedger(models.Model):
         else:
             domain.append(('company_id', '=', self.company_id.id))
         journals = self.env['account.journal'].search(domain)
-        self.journal_ids = [(6, 0, journals.ids)]
+        self.journal_ids = [Command.set(journals.ids)]
 
     def action_present(self):
         self.write({'state': 'presented'})

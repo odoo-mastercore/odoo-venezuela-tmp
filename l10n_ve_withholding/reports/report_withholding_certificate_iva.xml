@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <template id="report_withholding_certificate_document_iva">
         <t t-call="web.external_layout">
@@ -32,25 +32,21 @@ intervengan en operaciones gravadas con el impuesto establecido en este decreto 
 
                         <!-- IDENTIFICACION (SUJETO A RETENCIÓN) -->
                         <t t-if="not o.payment_id.l10n_ve_third_partner_withholding">
-                            <!-- (1) Apellido uy Nombre: Denominicacion o Razon Social -->
                             <strong>Sujeto a Retención: </strong><span t-field="o.partner_id.name"/>
-                            <!-- (2) RIF -->
                             <t t-if="o.partner_id.vat and o.partner_id.l10n_latam_identification_type_id.name">
                                 <br/>
-                                <strong>R.I.F:</strong> 
+                                <strong>R.I.F:</strong>
                                 <span t-field="o.partner_id.l10n_latam_identification_type_id.l10n_ve_code"/>-<span t-field="o.partner_id.vat"/>
                             </t>
                         </t>
                         <t t-else="">
-                            <!-- (1) Apellido uy Nombre: Denominicacion o Razon Social -->
                             <strong>Sujeto a Retención: </strong><span t-field="o.payment_id.l10n_ve_third_partner_id.name"/>
-                            <!-- (2) RIF -->
                             <t t-if="o.payment_id.l10n_ve_third_partner_id.vat and o.payment_id.l10n_ve_third_partner_id.l10n_latam_identification_type_id.name">
                                 <br/>
-                                <strong>R.I.F:</strong> 
+                                <strong>R.I.F:</strong>
                                 <span t-field="o.payment_id.l10n_ve_third_partner_id.l10n_latam_identification_type_id.l10n_ve_code"/>-<span t-field="o.payment_id.l10n_ve_third_partner_id.vat"/>
                             </t>
-                        </t>                        
+                        </t>
                         <!-- (3) Responsabilidad -->
                         <br/>
                         <strong>Tipo de Contribuyente: </strong><span t-field="o.partner_id.l10n_ve_responsibility_type_id"/>
@@ -108,38 +104,36 @@ intervengan en operaciones gravadas con el impuesto establecido en este decreto 
                             <t t-set="total_iva" t-value="0"></t>
                             <t t-set="total_retenido" t-value="0"></t>
                             <t t-foreach="o._get_withholding_lines().get('lines')" t-as="distribution">
-                                <t t-set="is_credit_note" t-value="distribution['move_type'] in ('in_refund', 'out_refund')"/>
-                                <t t-set="is_debit_note" t-value="distribution.get('is_debit_note', False) and not is_credit_note"/>
                                 <tr>
                                     <!-- No (Índice de la iteración) -->
                                     <th class="text-center"><span t-esc="distribution['index']"/></th>
                                     <!-- Fecha Dto -->
                                     <th class="text-center"><span t-esc="distribution['date']"/></th>
                                     <!-- Número de factura -->
-                                    <th class="text-center" t-if="not is_credit_note and not is_debit_note">
+                                    <th class="text-center" t-if="not distribution['reserved_entry']">
                                         <span t-esc="distribution['move_ref']"/></th>
                                     <th t-else=""/>
                                     <!-- Número de Control -->
                                     <th class="text-center">
                                         <span t-esc="distribution['l10n_ve_control_number']"/></th>
-                                    <!-- Número N/D -->
-                                    <th class="text-center">
-                                        <span t-if="is_debit_note" t-esc="distribution['move_ref']"/>
-                                    </th>
+                                    <!-- Número N/D (no implementado) -->
+                                    <th class="text-center"/>
                                     <!-- Número N/C -->
-                                    <th class="text-center" t-if="is_credit_note">
+                                    <th class="text-center" t-if="distribution['move_type'] == 'in_refund'">
                                         <span t-esc="distribution['move_ref']"/>
                                     </th>
                                     <th class="text-center" t-else=""/>
-                                    <!-- Tipo (01/02/03) -->
-                                    <th class="text-center" t-if="is_credit_note">03</th>
-                                    <th class="text-center" t-elif="is_debit_note">02</th>
+                                    <!-- Tipo (03/01) -->
+                                    <th class="text-center" t-if="distribution['move_type'] == 'in_refund'">03</th>
                                     <th class="text-center" t-else="">01</th>
 
-                                    <!-- Documento afectado por la NC o ND -->
-                                    <th class="text-center">
-                                        <span t-esc="distribution.get('affected_document_number', '')"/>
-                                    </th>
+                                    <!-- Dto Afectado (referencia de reverso) -->
+                                    <t t-if="distribution['reserved_entry_ref']">
+                                        <th class="text-center"><span t-esc="distribution['reserved_entry_ref']"/></th>
+                                    </t>
+                                    <t t-else="">
+                                        <th class="text-center"/>
+                                    </t>
                                     <!-- Total Compra con IVA -->
                                     <th class="text-center"><span t-esc="distribution['amount_total']"/></th>
                                     <!-- Compras sin crédito -->
@@ -256,26 +250,7 @@ intervengan en operaciones gravadas con el impuesto establecido en este decreto 
         <field name="report_type">qweb-pdf</field>
         <field name="paperformat_id" ref="report_qweb_paperformat_l"/>
         <field name="print_report_name">'Comprobante de Retención - %s' % (object.name or '')</field>
-        <!-- Vacio a proposito, igual que en report_withholding_certificate:
-             omitirlo dejaria viva la expresion de 15 sobre withholding_number,
-             campo que en 18 se llama name. -->
         <field name="attachment"></field>
-        <!-- En 15 este registro se anclaba al formulario de pago:
-                 <field name="binding_model_id" ref="model_account_payment"/>
-             y de ahi salia la entrada "Certificado de Retencion" del menu
-             Imprimir. En 18 el informe ya no es de account.payment sino de
-             l10n_ve.payment.withholding, asi que ese anclaje manda el id del
-             PAGO a un informe que espera el de la RETENCION:
-
-               MissingError: El registro no existe o fue eliminado.
-               (Registro: l10n_ve.payment.withholding(299735,))
-
-             Vacio y no omitido, por lo mismo que attachment: actualizar el
-             modulo no borra lo que el XML no declara. En 18 se imprime desde
-             el boton de impresora de la linea de retencion
-             (views/account_payment_view.xml), que si corre sobre el registro
-             correcto. -->
-        <field name="binding_model_id" eval="False"/>
         <field name="report_name">l10n_ve_withholding.report_withholding_certificate_iva</field>
         <field name="report_file">l10n_ve_withholding.report_withholding_certificate_iva</field>
     </record>

@@ -44,7 +44,7 @@ class ResPartner(models.Model):
     )
     l10n_latam_identification_type_id = fields.Many2one(
         'l10n_latam.identification.type', string="Identification Type",
-        index=True, auto_join=True,
+        index=True,
         default=lambda self: self.env.ref('l10n_ve_base.it_civ') or False,
         help="The type of identification")
     l10n_ve_responsibility_type_id = fields.Many2one(
@@ -53,12 +53,14 @@ class ResPartner(models.Model):
         'responsibilities that a person or a legal entity could have and that '
         'impacts in the type of operations and requirements they need.')
 
-    @api.constrains('vat', 'l10n_latam_identification_type_id')
-    def check_vat(self):
-        """ Since we validate more documents than the vat for Venezuelan partners (RIF, CI) we
-        extend this method in order to process it. """
-        l10n_ve_partners = self.filtered(lambda x: x.l10n_latam_identification_type_id)
-        return super(ResPartner, self - l10n_ve_partners).check_vat()
+    def _check_vat(self, validation='error'):
+        """Skip generic VAT validation for Venezuelan document types."""
+        l10n_ve_partners = self.filtered(
+            lambda partner: partner.l10n_latam_identification_type_id.country_id.code == 'VE'
+        )
+        return super(ResPartner, self - l10n_ve_partners)._check_vat(
+            validation=validation
+        )
 
     def _check_unique_vat(self):
         company_partner_ids = self.env['res.company'].sudo().search([]).mapped('partner_id').ids

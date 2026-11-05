@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
+<?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <record id='account_vat_ledger_list' model='ir.ui.view'>
         <field name='name'>Account VAT Ledger</field>

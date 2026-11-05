@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 ##############################################################################
-# Author: SINAPSYS GLOBAL SA || MASTERCORE SAS
-# Copyleft: 2026-Present.
-# License LGPL-3.0 or later (http: //www.gnu.org/licenses/lgpl.html).
+# Author: Mastercore Sinapsys Global®
+# Copyright: 2019-Present.
+# License OPL-1 (Odoo Proprietary License v1.0)
+# See https://www.odoo.com/documentation/master/legal/licenses.html
 #
 #
-###############################################################################
+##############################################################################
 from odoo import fields, models
 
 
@@ -17,8 +18,7 @@ class ResCompany(models.Model):
         default=False,
         help=(
             "Si esta activo, el Libro IVA de compras agrega las columnas de "
-            "importacion (planilla, fecha y expediente) y segmenta en ellas "
-            "las facturas de los proveedores marcados como compra de "
-            "importacion."
+            "importacion y segmenta las facturas de los proveedores marcados "
+            "como compras de importacion."
         ),
     )

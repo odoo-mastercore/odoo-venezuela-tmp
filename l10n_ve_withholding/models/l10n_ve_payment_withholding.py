@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-###############################################################################
-# Author: SINAPSYS GLOBAL SA || MASTERCORE SAS
-# Copyleft: 2020-Present.
-# License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl.html).
+##############################################################################
+# Author: Mastercore Sinapsys Global®
+# Copyright: 2019-Present.
+# License OPL-1 (Odoo Proprietary License v1.0)
+# See https://www.odoo.com/documentation/master/legal/licenses.html
 #
 #
-###############################################################################
+##############################################################################
 from datetime import datetime
 
 from dateutil.relativedelta import relativedelta
@@ -53,7 +54,7 @@ class l10nVePaymentWithholding(models.Model):
         string='Tipo de contacto',
         copy=False,
     )
-    cancel_date = fields.Date(string='Fecha de anulación', copy=False)
+    cancel_date = fields.Date(string='Fecha de anulacion', copy=False)
     ref = fields.Text(compute="_compute_amount", store=True, readonly=False, string="Ref")
     tax_id = fields.Many2one("account.tax", check_company=True, required=True, string="Tax")
     withholding_sequence_id = fields.Many2one(related="tax_id.l10n_ve_withholding_sequence_id")
@@ -131,7 +132,9 @@ class l10nVePaymentWithholding(models.Model):
                 withholding.write(vals)
 
     def unlink(self):
-        numbered_withholdings = self.filtered(lambda withholding: withholding._has_control_number())
+        numbered_withholdings = self.filtered(
+            lambda withholding: withholding._has_control_number()
+        )
         if numbered_withholdings:
             numbered_withholdings._write_payment_snapshot(
                 state='cancel',
@@ -395,11 +398,6 @@ class l10nVePaymentWithholding(models.Model):
         total_retenido = 0.0
         if self.l10n_ve_move_line_taxes_ids:
             for idx, tax in enumerate(self.l10n_ve_move_line_taxes_ids, start=1):
-                affected_move = (
-                    tax.move_id.reversed_entry_id
-                    if tax.move_id.move_type in ('in_refund', 'out_refund')
-                    else tax.move_id.debit_origin_id
-                )
                 total_base += tax.tax_base_amount
                 total_iva += tax.debit if tax.move_id.move_type == 'in_invoice' else tax.credit
                 total_retenido += tax.debit * int(self._get_partner_alicuot(self.payment_id.partner_id)) / 100 if tax.debit else tax.credit * int(self._get_partner_alicuot(self.payment_id.partner_id)) / 100
@@ -409,8 +407,6 @@ class l10nVePaymentWithholding(models.Model):
                     'move_ref': tax.move_id.ref or '',
                     'l10n_ve_control_number': tax.move_id.l10n_ve_control_number,
                     'move_type': tax.move_id.move_type or '',
-                    'is_debit_note': bool(tax.move_id.debit_origin_id),
-                    'affected_document_number': affected_move.ref or '',
                     'move_id': True if tax.move_id else False,
                     'reserved_entry': True if tax.move_id.reversed_entry_id else False,
                     'reserved_entry_ref': tax.move_id.reversed_entry_id.ref or '',

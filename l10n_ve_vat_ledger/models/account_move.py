@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 ##############################################################################
-# Author: SINAPSYS GLOBAL SA || MASTERCORE SAS
-# Copyleft: 2020-Present.
-# License LGPL-3.0 or later (http: //www.gnu.org/licenses/lgpl.html).
+# Author: Mastercore Sinapsys Global®
+# Copyright: 2019-Present.
+# License OPL-1 (Odoo Proprietary License v1.0)
+# See https://www.odoo.com/documentation/master/legal/licenses.html
 #
 #
-###############################################################################
+##############################################################################
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
 from datetime import datetime
@@ -31,14 +32,26 @@ class AccountMove(models.Model):
         copy=False,
     )
 
-    @api.depends("partner_id", "company_id", "company_id.l10n_ve_vat_ledger_show_import_columns")
+    @api.depends(
+        "partner_id",
+        "company_id",
+        "company_id.l10n_ve_vat_ledger_show_import_columns",
+    )
     def _compute_l10n_ve_show_vat_ledger_import_fields(self):
         for move in self:
             if not move.company_id.l10n_ve_vat_ledger_show_import_columns:
                 move.l10n_ve_show_vat_ledger_import_fields = False
                 continue
-            partner = move.partner_id.with_company(move.company_id) if move.partner_id else move.env["res.partner"]
-            commercial_partner = partner.commercial_partner_id if partner else move.env["res.partner"]
+            partner = (
+                move.partner_id.with_company(move.company_id)
+                if move.partner_id
+                else move.env["res.partner"]
+            )
+            commercial_partner = (
+                partner.commercial_partner_id
+                if partner
+                else move.env["res.partner"]
+            )
             move.l10n_ve_show_vat_ledger_import_fields = bool(
                 partner
                 and (

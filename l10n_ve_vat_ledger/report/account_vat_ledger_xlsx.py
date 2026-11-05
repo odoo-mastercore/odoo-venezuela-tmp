@@ -1,6 +1,11 @@
+# -*- coding: utf-8 -*-
 ##############################################################################
-# For copyright and license notices, see __manifest__.py file in module root
-# directory
+# Author: Mastercore Sinapsys Global®
+# Copyright: 2019-Present.
+# License OPL-1 (Odoo Proprietary License v1.0)
+# See https://www.odoo.com/documentation/master/legal/licenses.html
+#
+#
 ##############################################################################
 from re import search
 from datetime import datetime, timedelta
@@ -560,8 +565,15 @@ class AccountVatLedgerXlsx(models.AbstractModel):
                     retenciones_by_date.setdefault(r.date, []).append(r)
                 retenciones = list(retens)
             if obj.type == 'sale':
-                invoices = [inv for inv in obj.invoice_ids if self._get_sale_invoice_ledger_date(inv)]
-                invoices = sorted(invoices, key=lambda x: self._get_sale_invoice_ledger_date(x))
+                invoices = [
+                    invoice
+                    for invoice in obj.invoice_ids
+                    if self._get_sale_invoice_ledger_date(invoice)
+                ]
+                invoices = sorted(
+                    invoices,
+                    key=lambda invoice: self._get_sale_invoice_ledger_date(invoice),
+                )
             elif obj.type == 'purchase':
                 invoices = [inv for inv in obj.invoice_ids if inv.invoice_date]
                 invoices = sorted(invoices, key=lambda x: x.invoice_date)
@@ -665,11 +677,11 @@ class AccountVatLedgerXlsx(models.AbstractModel):
                         sheet.write(row, 2, 'Nota de Credito', line)
                     elif invoice.move_type == 'out_refund' and invoice.debit_origin_id:
                         sheet.write(row, 2, 'Nota de Debito', line)
-                    elif invoice.move_type == 'in_invoice' and not invoice.debit_origin_id:
+                    elif invoice.move_type == 'in_invoice':
                         sheet.write(row, 2, 'Factura', line)
                     elif invoice.move_type == 'in_refund' and not invoice.debit_origin_id:
                         sheet.write(row, 2, 'Nota de Credito', line)
-                    elif invoice.move_type == 'in_invoice' and invoice.debit_origin_id:
+                    elif invoice.move_type == 'in_refund' and invoice.debit_origin_id:
                         sheet.write(row, 2, 'Nota de Debito', line)
                     # Número de Documento
                     sheet.write(row, 3, invoice.ref or '', line)
@@ -684,8 +696,6 @@ class AccountVatLedgerXlsx(models.AbstractModel):
                     if invoice.move_type == 'in_refund' or invoice.move_type == 'out_refund':
                         inv_info = invoice.reversed_entry_id
                         sheet.write(row, 6, inv_info.ref if inv_info else '', line)
-                    elif invoice.debit_origin_id:
-                        sheet.write(row, 6, invoice.debit_origin_id.ref or '', line)
                     else:
                         sheet.write(row, 6, '', line)
 
@@ -878,7 +888,12 @@ class AccountVatLedgerXlsx(models.AbstractModel):
                     # contador de la factura
                     sheet.write(row, 0, i, line)
                     # codigo fecha
-                    sheet.write(row, 1, invoice.l10n_ve_invoice_date or invoice.invoice_date or 'FALSE', date_time_line)
+                    sheet.write(
+                        row,
+                        1,
+                        invoice.l10n_ve_invoice_date or invoice.invoice_date or 'FALSE',
+                        date_time_line,
+                    )
                     # tipo de documento
                     
                     if invoice.move_type == 'out_invoice' and not invoice.debit_origin_id:
@@ -1424,7 +1439,13 @@ class AccountVatLedgerXlsx(models.AbstractModel):
                 sheet.write((row+14), 17, c_total_igtf, line_number)
 
             if show_import_columns:
-                self._apply_purchase_import_segmentation(sheet, obj, line_number, date_line, line_total)
+                self._apply_purchase_import_segmentation(
+                    sheet,
+                    obj,
+                    line_number,
+                    date_line,
+                    line_total,
+                )
 
     def _wrap_purchase_sheet(self, sheet):
         """Insertar la columna "Fecha de planilla de Importación" en el

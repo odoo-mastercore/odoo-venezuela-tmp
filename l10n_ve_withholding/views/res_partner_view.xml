@@ -5,16 +5,7 @@
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="model">res.partner</field>
         <field name="arch" type="xml">
-            <group name="banks" position="before">
-                <group string="Withholding" invisible="'VE' not in fiscal_country_codes or not is_company">
-                    <field name="l10n_ve_vat_retention" string="Retención I.V.A"/>
-                    <field name="l10n_ve_seniat_partner_type_id"/>
-                    <div class="o_row">
-                        <group name="regimen_islr" string="Régimen ISLR Aplicar" invisible="not l10n_ve_seniat_partner_type_id">
-                            <field name="l10n_ve_seniat_regimen_islr_ids" string="RÉGIMEN ISLR APLICAR" nolabel="1" colspan="2"/>
-                        </group>
-                    </div>
-                </group>
+            <xpath expr="//page[@name='accounting']/group" position="inside">
                 <group string="Purchase Tax Withholdings">
                     <field name="l10n_ve_partner_tax_ids" nolabel="1" colspan="2" widget="auto_save_res_partner">
                         <list editable="top">
@@ -22,7 +13,12 @@
                         </list>
                     </field>
                 </group>
-            </group>
+                <group string="Withholding" invisible="'VE' not in fiscal_country_codes or not is_company">
+                    <field name="l10n_ve_vat_retention" string="Retención I.V.A"/>
+                    <field name="l10n_ve_seniat_partner_type_id"/>
+                    <field name="l10n_ve_seniat_regimen_islr_ids" string="RÉGIMEN ISLR APLICAR" widget="many2many_tags" options="{'edit_tags': True}"/>
+                </group>
+            </xpath>
         </field>
     </record>
 </odoo>

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <template id="report_withholding_certificate_document">
         <t t-call="web.external_layout">
@@ -27,25 +27,21 @@
                         <!-- IDENTIFICACION (SUJETO A RETENCIÓN) -->
 
                         <t t-if="not o.payment_id.l10n_ve_third_partner_withholding">
-                            <!-- (1) Apellido uy Nombre: Denominicacion o Razon Social -->
                             <strong>Sujeto a Retención: </strong><span t-field="o.partner_id.name"/>
-                            <!-- (2) RIF -->
                             <t t-if="o.partner_id.vat and o.partner_id.l10n_latam_identification_type_id.name">
                                 <br/>
-                                <strong>R.I.F:</strong> 
+                                <strong>R.I.F:</strong>
                                 <span t-field="o.partner_id.l10n_latam_identification_type_id.l10n_ve_code"/>-<span t-field="o.partner_id.vat"/>
                             </t>
                         </t>
                         <t t-else="">
-                            <!-- (1) Apellido uy Nombre: Denominicacion o Razon Social -->
                             <strong>Sujeto a Retención: </strong><span t-field="o.payment_id.l10n_ve_third_partner_id.name"/>
-                            <!-- (2) RIF -->
                             <t t-if="o.payment_id.l10n_ve_third_partner_id.vat and o.payment_id.l10n_ve_third_partner_id.l10n_latam_identification_type_id.name">
                                 <br/>
-                                <strong>R.I.F:</strong> 
+                                <strong>R.I.F:</strong>
                                 <span t-field="o.payment_id.l10n_ve_third_partner_id.l10n_latam_identification_type_id.l10n_ve_code"/>-<span t-field="o.payment_id.l10n_ve_third_partner_id.vat"/>
                             </t>
-                        </t>  
+                        </t>
                         <!-- (3) Responsabilidad -->
                         <br/>
                         <strong>Tipo de Contribuyente: </strong><span t-field="o.partner_id.l10n_ve_responsibility_type_id"/>
@@ -191,38 +187,7 @@
         <field name="report_type">qweb-pdf</field>
         <field name="paperformat_id" ref="base.paperformat_us"/>
         <field name="print_report_name">'Comprobante de Retención - %s' % (object.name or '')</field>
-        <!-- En 15 este registro traia attachment con la expresion
-             "object.withholding_number", y el campo se llamaba asi sobre
-             account.payment. Aqui el informe es de l10n_ve.payment.withholding
-             y el numero es 'name'.
-
-             Hay que declararlo vacio, no basta con omitirlo: al actualizar el
-             modulo Odoo solo escribe los campos que el XML declara, asi que en
-             una base venida de 15 la columna conserva la expresion vieja y
-             cualquier impresion muere en safe_eval con
-
-               AttributeError: 'l10n_ve.payment.withholding' object has no
-               attribute 'withholding_number'
-
-             Se deja vacio a proposito: en 18 el nombre del PDF sale de
-             print_report_name y el informe no se guarda como adjunto. -->
         <field name="attachment"></field>
-        <!-- En 15 este registro se anclaba al formulario de pago:
-                 <field name="binding_model_id" ref="model_account_payment"/>
-             y de ahi salia la entrada "Certificado de Retencion" del menu
-             Imprimir. En 18 el informe ya no es de account.payment sino de
-             l10n_ve.payment.withholding, asi que ese anclaje manda el id del
-             PAGO a un informe que espera el de la RETENCION:
-
-               MissingError: El registro no existe o fue eliminado.
-               (Registro: l10n_ve.payment.withholding(299735,))
-
-             Vacio y no omitido, por lo mismo que attachment: actualizar el
-             modulo no borra lo que el XML no declara. En 18 se imprime desde
-             el boton de impresora de la linea de retencion
-             (views/account_payment_view.xml), que si corre sobre el registro
-             correcto. -->
-        <field name="binding_model_id" eval="False"/>
         <field name="report_name">l10n_ve_withholding.report_withholding_certificate</field>
         <field name="report_file">l10n_ve_withholding.report_withholding_certificate</field>
     </record>
