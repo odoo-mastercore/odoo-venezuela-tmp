@@ -6,7 +6,9 @@
 #
 #
 ###############################################################################
-from odoo import models, fields, api, _
+from odoo import models, fields, api, _, Command
+from odoo.exceptions import AccessError, UserError
+from odoo.osv import expression
 from odoo.tools import format_date
 import logging
 
@@ -83,9 +85,112 @@ class AccountVatLedger(models.Model):
         store=True
     )
 
-    @api.depends('journal_ids', 'date_from', 'date_to', 'company_id', 'type')
+    sale_book_format = fields.Selection(
+        selection=[
+            ('documents', 'Forma libre / factura digital'),
+            ('fiscal', 'Maquina fiscal con contingencia manual'),
+            ('mixed', 'Maquina fiscal y factura digital / forma libre'),
+        ],
+        string='Formato de ventas',
+        compute='_compute_sale_book_format', store=True, readonly=False, copy=True,
+    )
+    sale_book_scope = fields.Selection(
+        [('own', 'Movimientos propios'), ('consolidated', 'Consolidado')],
+        string='Alcance', default='own', required=True,
+    )
+    sale_book_can_consolidate = fields.Boolean(compute='_compute_sale_book_companies')
+    sale_book_company_ids = fields.Many2many(
+        'res.company', compute='_compute_sale_book_companies', string='Empresas del libro',
+    )
+
+    @api.depends('company_id', 'type')
+    def _compute_sale_book_format(self):
+        for ledger in self:
+            ledger.sale_book_format = ledger.company_id.l10n_ve_sale_vat_book_format or 'documents'
+
+    def _get_sale_book_companies(self):
+        self.ensure_one()
+        company = self.company_id
+        if not company:
+            return company
+        if self.sale_book_scope == 'consolidated':
+            if company.parent_id:
+                raise UserError(_('El consolidado solo puede generarse desde la empresa principal.'))
+            # Read hierarchy metadata only; financial records never use sudo.
+            companies = self.env['res.company'].sudo().with_context(active_test=False).search([
+                ('id', 'child_of', company.id),
+            ])
+        else:
+            companies = company
+        if not self.env.su and set(companies.ids) - set(self.env.user._get_company_ids()):
+            raise AccessError(_('Necesita acceso a todas las sucursales para generar este libro completo.'))
+        def tax_identity(item):
+            return (
+                item.partner_id.l10n_latam_identification_type_id.l10n_ve_code,
+                ''.join(char for char in (item.vat or '') if char.isdigit()),
+            )
+        if self.sale_book_scope == 'consolidated' and any(
+            not tax_identity(company)[1] or tax_identity(item) != tax_identity(company)
+            for item in companies
+        ):
+            raise UserError(_('El consolidado requiere que la principal y sus sucursales compartan el RIF.'))
+        return self.env['res.company'].browse(companies.ids)
+
+    @api.depends('company_id', 'company_id.parent_id', 'company_id.child_ids', 'sale_book_scope', 'type')
+    def _compute_sale_book_companies(self):
+        for ledger in self:
+            ledger.sale_book_can_consolidate = bool(
+                ledger.company_id.with_context(active_test=False).child_ids
+                and not ledger.company_id.parent_id
+            )
+            ledger.sale_book_company_ids = (
+                ledger._get_sale_book_companies() if ledger.type == 'sale' else ledger.company_id
+            )
+
+    def _get_sale_book_context(self):
+        companies = self._get_sale_book_companies()
+        return dict(self.env.context, allowed_company_ids=companies.ids)
+
+    def _get_sale_book_source_data(self):
+        self.ensure_one()
+        scoped = self.with_context(self._get_sale_book_context())
+        company_ids = scoped._get_sale_book_companies().ids
+        invoices = scoped.env['account.move'].search([
+            ('company_id', 'in', company_ids), ('journal_id', 'in', scoped.journal_ids.ids),
+            ('move_type', 'in', ['out_invoice', 'out_refund']),
+            ('state', 'in', ['posted', 'cancel']), ('name', '!=', False),
+            ('invoice_date', '>=', scoped.date_from), ('invoice_date', '<=', scoped.date_to),
+        ], order='invoice_date, company_id, id')
+        period = expression.OR([
+            [('date', '>=', scoped.date_from), ('date', '<=', scoped.date_to)],
+            [('date', '=', False), ('payment_id.date', '>=', scoped.date_from),
+             ('payment_id.date', '<=', scoped.date_to)],
+        ])
+        withholdings = scoped.env['l10n_ve.payment.withholding'].search(expression.AND([
+            [('company_id', 'in', company_ids), ('state', '!=', 'cancel'),
+             ('payment_id.state', 'in', ['in_process', 'paid']),
+             ('tax_id.l10n_ve_withholding_payment_type', '=', 'customer'),
+             ('tax_id.l10n_ve_withholding_ingoing_type', '=', 'iva')], period,
+        ]), order='date, id')
+        return invoices, withholdings
+
+    def _has_sale_book_fiscal_source(self):
+        return False
+
+    def _get_sale_book_fiscal_entries(self, invoices):
+        """Optional integrations return fiscal rows and the covered invoice IDs."""
+        return [], set(), []
+
+    @api.depends('journal_ids', 'date_from', 'date_to', 'company_id', 'type', 'sale_book_scope')
     def _compute_invoices(self):
         for rec in self:
+            if rec.type == 'sale':
+                if rec.company_id and rec.date_from and rec.date_to:
+                    rec.invoice_ids, rec.withholding_ids = rec._get_sale_book_source_data()
+                else:
+                    rec.invoice_ids = False
+                    rec.withholding_ids = False
+                continue
             company_ids = [rec.company_id.id]
             if rec.company_id.child_ids:
                 company_ids += rec.company_id.child_ids.ids
@@ -99,28 +204,7 @@ class AccountVatLedger(models.Model):
                 ('company_id', 'in', company_ids),
                 ('state', '!=', 'cancel'),
             ]
-            if rec.type == 'sale':
-                invoices_domain += [
-                    ('move_type', 'in', ['out_invoice', 'out_refund']),
-                    ('l10n_ve_control_number', '!=', False),
-                    ('name', '!=', False),
-                    ('invoice_date', '>=', rec.date_from),
-                    ('invoice_date', '<=', rec.date_to),
-                ]
-                withholdings_domain += [
-                    ('tax_id.l10n_ve_withholding_payment_type', '=', 'customer'),
-                    ('tax_id.l10n_ve_withholding_ingoing_type', '=', 'iva'),
-                    # Include withholdings by their own date or by payment date.
-                    # This covers cases where withholding date and payment date differ.
-                    '|',
-                    '&',
-                    ('date', '>=', rec.date_from),
-                    ('date', '<=', rec.date_to),
-                    '&',
-                    ('payment_id.date', '>=', rec.date_from),
-                    ('payment_id.date', '<=', rec.date_to),
-                ]
-            elif rec.type == 'purchase':
+            if rec.type == 'purchase':
                 invoices_domain += [
                     ('move_type', 'in', ['in_invoice', 'in_refund']),
                     ('date', '>=', rec.date_from),
@@ -169,9 +253,19 @@ class AccountVatLedger(models.Model):
 
  
 
-    @api.onchange('company_id', 'type')
+    @api.onchange('company_id', 'type', 'sale_book_scope')
     def change_company(self):
         self.ensure_one()
+        if self.type == 'sale':
+            if not self.sale_book_can_consolidate:
+                self.sale_book_scope = 'own'
+            scoped = self.with_context(self._get_sale_book_context())
+            self.journal_ids = [Command.set(scoped.env['account.journal'].with_context(
+                active_test=False,
+            ).search([
+                ('type', '=', 'sale'), ('company_id', 'in', self._get_sale_book_companies().ids),
+            ]).ids)]
+            return
         domain = []
         if self.type == 'sale':
             domain.append(('type', '=', 'sale'))
@@ -189,7 +283,19 @@ class AccountVatLedger(models.Model):
         self.journal_ids = [(6, 0, journals.ids)]
 
     def action_present(self):
+        for ledger in self.filtered(lambda item: item.type == 'sale'):
+            if not ledger.sale_book_format:
+                ledger.sale_book_format = ledger.company_id.l10n_ve_sale_vat_book_format
+            if ledger.sale_book_format != 'documents' and not ledger._has_sale_book_fiscal_source():
+                raise UserError(_('El formato fiscal requiere una integracion de reportes Z instalada.'))
+            ledger._get_sale_book_companies()
         self.write({'state': 'presented'})
+
+    def write(self, values):
+        if {'sale_book_format', 'sale_book_scope'} & values.keys():
+            if any(ledger.type == 'sale' and ledger.state != 'draft' for ledger in self):
+                raise UserError(_('Restablezca el libro a borrador antes de cambiar su formato o alcance.'))
+        return super().write(values)
 
     def action_cancel(self):
         self.write({'state': 'cancel'})

@@ -12,6 +12,17 @@ from odoo import fields, models
 class ResCompany(models.Model):
     _inherit = "res.company"
 
+    l10n_ve_sale_vat_book_format = fields.Selection(
+        selection=[
+            ('documents', 'Forma libre / factura digital'),
+            ('fiscal', 'Maquina fiscal con contingencia manual'),
+            ('mixed', 'Maquina fiscal y factura digital / forma libre'),
+        ],
+        string='Formato del Libro IVA de ventas',
+        required=True,
+        default='documents',
+    )
+
     l10n_ve_vat_ledger_show_import_columns = fields.Boolean(
         string="Segmentar importaciones en Libro IVA de compras",
         default=False,

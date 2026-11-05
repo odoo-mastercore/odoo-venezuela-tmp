@@ -12,6 +12,11 @@ from odoo import fields, models
 class ResConfigSettings(models.TransientModel):
     _inherit = "res.config.settings"
 
+    l10n_ve_sale_vat_book_format = fields.Selection(
+        related='company_id.l10n_ve_sale_vat_book_format',
+        readonly=False,
+    )
+
     l10n_ve_vat_ledger_show_import_columns = fields.Boolean(
         related="company_id.l10n_ve_vat_ledger_show_import_columns",
         readonly=False,

@@ -7,3 +7,4 @@
 #
 ###############################################################################
 from . import account_vat_ledger_xlsx
+from . import account_sale_vat_ledger_xlsx

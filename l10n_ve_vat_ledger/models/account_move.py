@@ -15,6 +15,37 @@ _logger = logging.getLogger(__name__)
 class AccountMove(models.Model):
     _inherit = 'account.move'
 
+    l10n_ve_vat_book_emission = fields.Selection(
+        selection=[('manual', 'Forma libre'), ('digital', 'Factura digital')],
+        string='Emision para el Libro IVA',
+        compute='_compute_l10n_ve_vat_book_emission',
+        store=True,
+        readonly=False,
+        copy=True,
+        precompute=True,
+        tracking=True,
+    )
+
+    @api.depends('journal_id', 'move_type')
+    def _compute_l10n_ve_vat_book_emission(self):
+        for move in self:
+            move.l10n_ve_vat_book_emission = move._get_default_l10n_ve_vat_book_emission()
+
+    def _get_default_l10n_ve_vat_book_emission(self):
+        self.ensure_one()
+        return self.journal_id.l10n_ve_vat_book_emission or 'manual'
+
+    def _get_l10n_ve_vat_book_emission(self):
+        self.ensure_one()
+        return self.l10n_ve_vat_book_emission or 'manual'
+
+    l10n_ve_purchase_type = fields.Selection(
+        selection=[('national', 'Nacional'), ('import', 'Importación')],
+        string='Tipo de compra',
+        copy=True,
+        tracking=True,
+        help='Clasifica esta factura en el Libro IVA de compras, independientemente del proveedor.',
+    )
     l10n_ve_show_vat_ledger_import_fields = fields.Boolean(
         compute="_compute_l10n_ve_show_vat_ledger_import_fields",
     )
@@ -31,20 +62,20 @@ class AccountMove(models.Model):
         copy=False,
     )
 
-    @api.depends("partner_id", "company_id", "company_id.l10n_ve_vat_ledger_show_import_columns")
+    @api.model
+    def default_get(self, fields_list):
+        values = super().default_get(fields_list)
+        # Default only new records; historical purchases require an explicit classification.
+        if 'l10n_ve_purchase_type' in fields_list:
+            values.setdefault('l10n_ve_purchase_type', 'national')
+        return values
+
+    @api.depends('move_type', 'l10n_ve_purchase_type')
     def _compute_l10n_ve_show_vat_ledger_import_fields(self):
         for move in self:
-            if not move.company_id.l10n_ve_vat_ledger_show_import_columns:
-                move.l10n_ve_show_vat_ledger_import_fields = False
-                continue
-            partner = move.partner_id.with_company(move.company_id) if move.partner_id else move.env["res.partner"]
-            commercial_partner = partner.commercial_partner_id if partner else move.env["res.partner"]
             move.l10n_ve_show_vat_ledger_import_fields = bool(
-                partner
-                and (
-                    partner.l10n_ve_vat_ledger_import_purchase
-                    or commercial_partner.l10n_ve_vat_ledger_import_purchase
-                )
+                move.move_type in ('in_invoice', 'in_refund')
+                and move.l10n_ve_purchase_type == 'import'
             )
 
     def _get_name_vat_ledger(self):

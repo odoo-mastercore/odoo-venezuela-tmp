@@ -9,23 +9,8 @@
                 <attribute name="invisible">0</attribute>
             </div>
             <xpath expr="//block[@id='venezuela_localization']" position="inside">
-                <setting id="l10n_ve_vat_ledger_import_columns" string="Libro IVA" company_dependent="1">
-                    <div class="content-group" invisible="country_code != 'VE'">
-                        <div class="row mt16">
-                            <div class="o_setting_left_pane">
-                                <field name="l10n_ve_vat_ledger_show_import_columns"/>
-                            </div>
-                            <div class="o_setting_right_pane">
-                                <label for="l10n_ve_vat_ledger_show_import_columns"/>
-                                <span class="fa fa-lg fa-building-o" title="Values set here are company-specific."/>
-                                <div class="text-muted">
-                                    Agrega columnas de importación (planilla, fecha y expediente) al
-                                    Libro IVA de compras y segmenta en ellas las facturas de proveedores
-                                    marcados como compra de importación.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <setting id="l10n_ve_sale_vat_book_format" string="Libro IVA de ventas" company_dependent="1">
+                    <field name="l10n_ve_sale_vat_book_format"/>
                 </setting>
             </xpath>
         </field>
