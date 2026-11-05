@@ -8,12 +8,10 @@
                     <br/>
                     <t t-set="report_date" t-value="o.date"/>
                     <t t-set="report_number" t-value="o.withholding_number or o.name"/>
-                    <t t-set="report_name" t-value="'COMPROBANTE DE RETENCIÓN ISLR'"/>
+                    <t t-set="report_name" t-value="'CERTIFICADO DE RETENCIÓN ISLR'"/>
                     <t t-set="header_address" t-value="o.company_id.partner_id"/>
                     <div class="text-right">
                         <h4><b><t t-esc="report_name"/></b></h4>
-                        <small>REGLAMENTO PARCIAL DE LA LEY DE IMPUESTO SOBRE LA RENTA EN MATERIA DE RETENCIONES Decreto N° 1.808 de fecha 23 de abril de 1997. Gaceta Oficial N° 36.203 de fecha 12 de mayo de 1997.
-"Artículo 24: Los agentes de retención están obligados a entregar a  los contribuyentes, un comprobante por cada retención de impuesto que les practiquen en el cual se indique, entre otra información, el monto de lo pagado o abonado en cuenta y la cantidad retenida. (...)"</small>
                         <p style="font-size: 14px;">
                             <b>N° de Comprobante: </b><span t-esc="report_number"/><br/>
                             <b>Fecha de emisión: </b><span t-esc="report_date.strftime('%d-%m-%Y')"/><br/>
@@ -58,57 +56,24 @@
                                 <span t-field="o.concept_withholding"/>
                             </td>
                         </tr>
-                        <t t-foreach="o.payment_group_id.to_pay_move_line_ids" t-as="i">
-                            <tr>
-                                <t t-if="i.move_id.move_type == 'in_refund'">
-                                    <td class="text-right">
-                                        Factura afectada:
-                                    </td>
-                                    <td class="text-left" >
-                                        <span t-field="i.move_id.reversed_entry_id.ref"/>
-                                    </td>
-                                </t>
-                                <t t-elif="i.move_id.move_type == out_invoice">
-                                    <td class="text-right">
-                                        Factura:
-                                    </td>
-                                    <td class="text-left" >
-                                        <span t-field="i.move_id.name"/>
-                                    </td>
-                                </t>
-                                <t t-else="">
-                                    <td class="text-right">
-                                        Factura:
-                                    </td>
-                                    <td class="text-left" >
-                                        <span t-field="i.move_id.ref"/>
-                                    </td>
-                                </t>
-                            </tr>
-                            <tr>
-                                <td class="text-right">
-                                    Fecha de factura afectada:
-                                </td>
-                                <td class="text-left">
-                                    <span t-field="i.move_id.invoice_date"/>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="text-right">
-                                    Número de control:
-                                </td>
-                                <td class="text-left">
-                                    <span t-field="i.move_id.l10n_ve_document_number"/>
-                                </td>
-                            </tr>
-                            
-                        </t>
-                        <tr t-if="o.get_sustraendo()">
+                        <tr>
                             <td class="text-right">
-                                Sustraendo:
+                                Comprobante que origina la retención:
                             </td>
                             <td class="text-left">
-                                <span t-if="o.get_sustraendo()" t-esc="o.get_sustraendo()"/>
+                                <t t-foreach="o.payment_group_id.to_pay_move_line_ids" t-as="i">
+                                    Nro: <span t-field="i.move_id.l10n_ve_document_number"/>, 
+                                    <t t-if="i.move_id.move_type == 'in_refund'">Factura afectada: <span t-field="i.move_id.reversed_entry_id.ref"/>,
+                                        Nota de crédito: <span t-field="i.move_id.ref"/>
+                                    </t>
+                                    <t t-elif="i.move_id.move_type == out_invoice">
+                                        Fact: <span t-field="i.move_id.name"/>
+                                    </t>
+                                    
+                                    <t t-else="">
+                                        Fact: <span t-field="i.move_id.ref"/>
+                                    </t>
+                                </t>
                             </td>
                         </tr>
                         <tr>
@@ -165,13 +130,13 @@
     </template>
 
     <record id="action_report_withholding_certificate" model="ir.actions.report">
-            <field name="name">Comprobante de Retención de ISLR</field>
+            <field name="name">Certificado de Retención de ISLR</field>
             <field name="model">account.payment</field>
             <field name="binding_model_id" ref="model_account_payment"/>
             <field name="report_type">qweb-pdf</field>
             <field name="report_name">l10n_ve_withholding.report_withholding_certificate</field>
             <field name="report_file">l10n_ve_withholding.report_withholding_certificate</field>
-            <field name="attachment">'Comprobante de Retención - %s' % (object.withholding_number or '')</field>
+            <field name="attachment">'Certificado de Retención - %s' % (object.withholding_number or '')</field>
             <field name="binding_type">report</field>
     </record>
 

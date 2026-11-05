@@ -17,16 +17,15 @@
 
     'author': "SINAPSYS GLOBAL SA || MASTERCORE SAS",
     'website': "http://sinapsys.global",
-    'version': '15.0.9',
+    'version': '15.0.8',
     'category': 'Localization',
     'license': 'AGPL-3',
     'depends': [
-        'account', 'l10n_ve_base','l10n_ve_withholding', 'report_xlsx','l10n_ve_account',],
+        'account', 'l10n_ve_base','l10n_ve_withholding', 'report_xlsx'],
     'data': [
         'security/security.xml',
         'security/ir.model.access.csv',
         'views/account_vat_ledger_views.xml',
-        'views/account_move.xml',
         'wizard/account_wizard_views.xml',
         'report/account_vat_ledger_report.xml',
     ],

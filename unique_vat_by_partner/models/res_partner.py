@@ -16,7 +16,6 @@ class UniVat(models.Model):
     @api.constrains('vat','l10n_latam_identification_type_id','company_type')
     def _validate_single_duplicate_vat(self):
         for rec in self:
-            #Validación
             if rec.vat:
                 same_vats = self.env['res.partner'].search([
                     ('vat', '=', rec.vat),
